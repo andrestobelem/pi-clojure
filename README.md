@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- [#27 Refactorizar store in-memory del dominio](https://github.com/andrestobelem/pi-clojure/issues/27)
+- Ninguna.
 
 Procedimiento de trabajo:
 

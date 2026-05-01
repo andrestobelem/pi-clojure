@@ -1,3 +1,4 @@
 {:paths ["src" "test"]
  :aliases
- {:test {:main-opts ["-m" "pi-clojure.test-runner"]}}}
+ {:chat {:main-opts ["-m" "pi-clojure.cli"]}
+  :test {:main-opts ["-m" "pi-clojure.test-runner"]}}}

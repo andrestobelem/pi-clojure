@@ -10,11 +10,14 @@ CREATE TABLE IF NOT EXISTS rooms (
 
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(36) NOT NULL,
-  handle VARCHAR(80) NOT NULL,
-  display_name VARCHAR(120) NOT NULL,
+  handle VARCHAR(39) NOT NULL,
+  user_type VARCHAR(32) NOT NULL,
+  display_name VARCHAR(120),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY users_handle_unique (handle)
+  UNIQUE KEY users_handle_unique (handle),
+  KEY users_type_idx (user_type)
 );
 
 CREATE TABLE IF NOT EXISTS messages (

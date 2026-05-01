@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- [#11 Como usuario, quiero ver la conversación de una sala en orden](https://github.com/andrestobelem/pi-clojure/issues/11)
+- Ninguna.
 
 Procedimiento de trabajo:
 

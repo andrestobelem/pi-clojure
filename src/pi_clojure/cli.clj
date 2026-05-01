@@ -24,12 +24,18 @@
 
 (defn require-user [store handle]
   (or (chat/find-by-handle store handle)
-      (throw (ex-info "usuario no existe" {:handle handle}))))
+      (throw (ex-info (str "El usuario \"" handle "\" no existe")
+                      {:error/type :user/not-found
+                       :error/path [:user/handle]
+                       :handle handle}))))
 
 (defn require-room [store room-name]
   (let [room-id (shared-room-id room-name)]
     (or (chat/find-room store room-id)
-        (throw (ex-info "sala no existe" {:room room-name})))))
+        (throw (ex-info (str "La sala \"" room-name "\" no existe")
+                        {:error/type :room/not-found
+                         :error/path [:room/name]
+                         :room room-name})))))
 
 (defn handle-by-id [store user-id]
   (:user/handle (chat/find-by-id store user-id)))
@@ -99,6 +105,41 @@
     (run-command! store command args)
     (save-store! state-file store)))
 
-(defn -main [& args]
+(defn error-code [error]
+  (when-let [type (:error/type error)]
+    (str (namespace type) "/" (name type))))
+
+(defn field-name [error]
+  (when-let [path (first (:error/path error))]
+    (str (namespace path) "." (name path))))
+
+(defn primary-error [ex]
+  (let [data (ex-data ex)]
+    (or (first (:errors data))
+        data)))
+
+(defn format-actionable-error [ex]
+  (let [error (primary-error ex)]
+    (str/join "\n"
+              (cond-> [(str "Error: " (ex-message ex))]
+                (error-code error)
+                (conj (str "Código: " (error-code error)))
+
+                (field-name error)
+                (conj (str "Campo: " (field-name error)))))))
+
+(defn print-actionable-error! [ex]
+  (binding [*out* *err*]
+    (println (format-actionable-error ex))))
+
+(defn main-status! [state-file args]
   (let [[command & command-args] args]
-    (apply run! default-state-file command command-args)))
+    (try
+      (apply run! state-file command command-args)
+      0
+      (catch clojure.lang.ExceptionInfo ex
+        (print-actionable-error! ex)
+        1))))
+
+(defn -main [& args]
+  (System/exit (main-status! default-state-file args)))

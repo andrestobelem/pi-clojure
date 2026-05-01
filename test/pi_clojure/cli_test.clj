@@ -1,6 +1,7 @@
 (ns pi-clojure.cli-test
   (:refer-clojure :exclude [run!])
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [pi-clojure.cli :as cli]))
 
@@ -11,6 +12,15 @@
 (defn run! [state-file & args]
   (with-out-str
     (apply cli/run! (str state-file) args)))
+
+(defn run-main-status! [state-file & args]
+  (let [out (java.io.StringWriter.)
+        err (java.io.StringWriter.)]
+    (binding [*out* out
+              *err* err]
+      {:exit-code (cli/main-status! (str state-file) args)
+       :out (str out)
+       :err (str err)})))
 
 (deftest minimal-chat-cli-flow
   (testing "given command invocations sharing a state file, when using the MVP flow, then chat state is persisted and rendered"
@@ -39,4 +49,40 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"comando desconocido"
                             (cli/run! (str state-file) "unknown")))
+      (io/delete-file state-file true))))
+
+(deftest actionable-cli-errors
+  (testing "given unsafe Markdown, when sending from the binary entrypoint, then the CLI prints an actionable error and does not persist the message"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "andres")
+      (let [{:keys [exit-code out err]} (run-main-status! state-file
+                                                          "send"
+                                                          "general"
+                                                          "andres"
+                                                          "Hola <b>mundo</b>")]
+        (is (= 1 exit-code))
+        (is (= "" out))
+        (is (str/includes? err "Error: El mensaje contiene HTML crudo no permitido"))
+        (is (str/includes? err "Código: markdown/raw-html"))
+        (is (str/includes? err "Campo: message.body")))
+      (is (= "# General\n\n## Mensajes\n\n\n"
+             (run! state-file "show" "general" "andres")))
+      (is (= "# General\n\n## Mensajes\n\n\n"
+             (run! state-file "export" "general" "andres")))
+      (io/delete-file state-file true)))
+
+  (testing "given a missing user or room, when running the binary entrypoint, then the CLI prints clear actionable errors"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-room" "general")
+      (is (= {:exit-code 1
+              :out ""
+              :err "Error: El usuario \"ana\" no existe\nCódigo: user/not-found\nCampo: user.handle\n"}
+             (run-main-status! state-file "join" "general" "ana")))
+      (is (= {:exit-code 1
+              :out ""
+              :err "Error: La sala \"random\" no existe\nCódigo: room/not-found\nCampo: room.name\n"}
+             (run-main-status! state-file "join" "random" "andres")))
       (io/delete-file state-file true))))

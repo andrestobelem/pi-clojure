@@ -12,7 +12,7 @@ Este repo usa **Test Driven Development / Test Driven Design** y
 Regla de trabajo:
 
 ```text
-Red -> Green -> Refactor
+Red -> Green -> Refactor -> Commit
 ```
 
 Buenas prácticas:
@@ -20,6 +20,7 @@ Buenas prácticas:
 - Escribir primero un test o ejemplo del comportamiento esperado.
 - Implementar lo mínimo para que el test pase.
 - Refactorizar con la suite en verde.
+- Con tests y checks verdes, hacer un commit atómico.
 - Usar los tests como feedback de diseño, no solo como cobertura.
 - Preferir ciclos cortos y tests rápidos.
 

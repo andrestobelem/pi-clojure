@@ -16,6 +16,7 @@ Trabajar en ciclos cortos:
 1. Red: escribir primero un test o ejemplo que falle.
 2. Green: implementar lo mínimo para pasar.
 3. Refactor: mejorar diseño con la suite en verde.
+4. Commit: con los checks en verde, hacer un commit atómico.
 
 Usar los tests como feedback de diseño, no solo como cobertura.
 
@@ -25,6 +26,7 @@ Usar los tests como feedback de diseño, no solo como cobertura.
 - Evitar ramas de larga vida.
 - Integrar cambios pequeños y frecuentes.
 - Hacer commits pequeños, atómicos y con una intención clara.
+- Después de cada ciclo TDD con tests verdes, commitear el cambio atómico.
 - Usar Conventional Commits.
 
 ## Documentación externa

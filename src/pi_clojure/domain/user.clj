@@ -1,7 +1,6 @@
 (ns pi-clojure.domain.user
   (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [pi-clojure.domain.model :as model]))
+            [clojure.string :as str]))
 
 (def min-handle-length 3)
 (def max-handle-length 39)
@@ -62,30 +61,30 @@
 
 (defn create-store []
   (atom #:users{:by-handle {}
+        :users/by-id {}
         :rooms/by-id {}
         :rooms/personal-by-owner-id {}
         :participations/active #{}
         :messages/by-room-id {}
-        :messages/next-sequence-by-room-id {}}))
+        :events/by-room-id {}}))
 
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
+
+(defn find-by-id [store user-id]
+  (get-in @store [:users/by-id user-id]))
 
 (defn list-users [store]
   (->> (get-in @store [:users/by-handle])
        (sort-by key)
        (mapv val)))
 
-(defn find-user-by-id [store user-id]
-  (some #(when (= user-id (:user/id %)) %)
-        (list-users store)))
-
-(defn find-room-by-id [store room-id]
+(defn find-room [store room-id]
   (get-in @store [:rooms/by-id room-id]))
 
 (defn find-personal-room-by-owner [store owner-id]
   (when-let [room-id (get-in @store [:rooms/personal-by-owner-id owner-id])]
-    (find-room-by-id store room-id)))
+    (find-room store room-id)))
 
 (defn list-rooms [store]
   (->> (get-in @store [:rooms/by-id])
@@ -95,25 +94,17 @@
 (defn active-participant? [store user-id room-id]
   (contains? (get-in @store [:participations/active]) [user-id room-id]))
 
-(defn list-active-participations [store]
-  (->> (get-in @store [:participations/active])
-       sort
-       vec))
+(defn active-participation-count [store user-id room-id]
+  (if (active-participant? store user-id room-id) 1 0))
 
-(defn shared-room? [room]
-  (= :room.type/shared (:room/type room)))
+(defn existing-user-id? [store user-id]
+  (boolean (find-by-id store user-id)))
 
-(defn owned-by? [user-id room]
-  (= user-id (:room/owner-id room)))
-
-(defn accessible-room? [user-id room]
-  (or (shared-room? room)
-      (owned-by? user-id room)))
-
-(defn list-accessible-rooms [store user-id]
-  (->> (list-rooms store)
-       (filter #(accessible-room? user-id %))
-       vec))
+(defn accessible-room? [store user-id room-id]
+  (let [room (find-room store room-id)]
+    (and (existing-user-id? store user-id)
+         (or (= :room.type/shared (:room/type room))
+             (= user-id (:room/owner-id room))))))
 
 (defn validate-handle! [handle]
   (when-not (required-handle? handle)
@@ -141,66 +132,93 @@
 (defn user-id-for-handle [handle]
   (str "user:" handle))
 
-(defn personal-room-id-for-user [created-user]
-  (str "room:" (:user/id created-user)))
+(defn persist-user [state created-user]
+  (-> state
+      (assoc-in [:users/by-handle (:user/handle created-user)] created-user)
+      (assoc-in [:users/by-id (:user/id created-user)] created-user)))
 
-(defn create-shared-room! [store room-id title]
-  (let [room #:room{:id room-id
+(defn room-slug-for-title [title]
+  (-> title
+      str/lower-case
+      (str/replace #"\s+" "-")))
+
+(defn create-shared-room! [store title]
+  (let [room #:room{:id (str "room:shared:" (room-slug-for-title title))
                     :type :room.type/shared
-                    :title title
-                    :visibility :room.visibility/shared}]
-    (swap! store assoc-in [:rooms/by-id room-id] room)
+                    :title title}]
+    (swap! store assoc-in [:rooms/by-id (:room/id room)] room)
     room))
 
 (defn join-room! [store user-id room-id]
-  (let [room (find-room-by-id store room-id)]
-    (when-not (find-user-by-id store user-id)
-      (throw (ex-info "user does not exist" {:user-id user-id})))
-    (when-not room
-      (throw (ex-info "room does not exist" {:room-id room-id})))
-    (when-not (accessible-room? user-id room)
-      (throw (ex-info "room is not accessible" {:user-id user-id
-                                                 :room-id room-id})))
-    (swap! store update-in [:participations/active] conj [user-id room-id])
-    (find-room-by-id store room-id)))
+  (when-not (accessible-room? store user-id room-id)
+    (throw (ex-info "room is not accessible"
+                    {:user-id user-id
+                     :room-id room-id})))
+  (swap! store update-in [:participations/active] conj [user-id room-id])
+  #:participation{:user-id user-id
+                  :room-id room-id
+                  :active? true})
 
 (defn leave-room! [store user-id room-id]
   (swap! store update-in [:participations/active] disj [user-id room-id])
-  nil)
+  #:participation{:user-id user-id
+                  :room-id room-id
+                  :active? false})
 
 (defn require-active-participant! [store user-id room-id]
   (when-not (active-participant? store user-id room-id)
-    (throw (ex-info "active participation is required"
+    (throw (ex-info "active participation required"
                     {:user-id user-id
                      :room-id room-id}))))
 
-(defn next-message-sequence [store room-id]
-  (get-in @store [:messages/next-sequence-by-room-id room-id] 1))
+(defn messages-in-room [store room-id]
+  (get-in @store [:messages/by-room-id room-id] []))
 
-(defn message-id [room-id sequence]
-  (str "message:" room-id ":" sequence))
+(defn add-message! [store room-id author-id sequence body-markdown]
+  (let [message #:message{:id (str "message:" room-id ":" sequence)
+                          :room-id room-id
+                          :author-id author-id
+                          :sequence sequence
+                          :body-markdown body-markdown}]
+    (swap! store update-in [:messages/by-room-id room-id] (fnil conj []) message)
+    message))
+
+(defn message-created-event [message]
+  #:event{:id (str "event:" (:message/id message) ":created")
+          :type :message/created
+          :room-id (:message/room-id message)
+          :actor-id (:message/author-id message)
+          :message-id (:message/id message)})
+
+(defn record-message-created-event! [store message]
+  (let [event (message-created-event message)]
+    (swap! store update-in [:events/by-room-id (:event/room-id event)] (fnil conj []) event)
+    event))
+
+(defn list-message-events [store room-id]
+  (get-in @store [:events/by-room-id room-id] []))
+
+(defn read-room [store user-id room-id]
+  (require-active-participant! store user-id room-id)
+  (->> (messages-in-room store room-id)
+       (sort-by :message/sequence)
+       vec))
+
+(defn next-message-sequence [store room-id]
+  (inc (reduce max 0 (map :message/sequence (messages-in-room store room-id)))))
 
 (defn send-message! [store user-id room-id body-markdown]
   (require-active-participant! store user-id room-id)
-  (let [sequence (next-message-sequence store room-id)
-        message (model/create-message (message-id room-id sequence)
-                                      room-id
-                                      user-id
-                                      sequence
-                                      body-markdown)]
-    (swap! store
-           (fn [state]
-             (-> state
-                 (update-in [:messages/by-room-id room-id] (fnil conj []) message)
-                 (assoc-in [:messages/next-sequence-by-room-id room-id]
-                           (inc sequence)))))
+  (let [message (add-message! store
+                              room-id
+                              user-id
+                              (next-message-sequence store room-id)
+                              body-markdown)]
+    (record-message-created-event! store message)
     message))
 
-(defn read-room-messages [store user-id room-id]
-  (require-active-participant! store user-id room-id)
-  (->> (get-in @store [:messages/by-room-id room-id])
-       (sort-by :message/sequence)
-       vec))
+(defn personal-room-id-for-user [created-user]
+  (str "room:" (:user/id created-user)))
 
 (defn ensure-personal-room! [store created-user]
   (or (find-personal-room-by-owner store (:user/id created-user))
@@ -228,7 +246,7 @@
                             (user-id-for-handle handle))]
     (when (find-by-handle store handle)
       (throw (ex-info "handle already exists" {:handle handle})))
-    (swap! store assoc-in [:users/by-handle handle] created-user)
+    (swap! store persist-user created-user)
     (when (= :user.type/human user-type)
       (ensure-personal-room! store created-user))
     created-user))

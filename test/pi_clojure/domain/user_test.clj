@@ -40,7 +40,9 @@
                     :type :user.type/human}
              created-user))
       (is (= created-user
-             (user/find-by-handle store "andres")))))
+             (user/find-by-handle store "andres")))
+      (is (= created-user
+             (user/find-by-id store (:user/id created-user))))))
 
   (testing "given an empty store, when creating an agent user, then it preserves the agent type"
     (let [store (user/create-store)
@@ -162,88 +164,121 @@
 (deftest create-shared-room
   (testing "given a title, when creating a shared room, then it persists a shared room"
     (let [store (user/create-store)
-          room (user/create-shared-room! store "general" "General")]
-      (is (= #:room{:id "general"
+          shared-room (user/create-shared-room! store "General")]
+      (is (= #:room{:id "room:shared:general"
                     :type :room.type/shared
-                    :title "General"
-                    :visibility :room.visibility/shared}
-             room))
-      (is (= room
-             (user/find-room-by-id store "general")))))
+                    :title "General"}
+             shared-room))
+      (is (= shared-room
+             (user/find-room store (:room/id shared-room))))))
 
-  (testing "given existing users, when creating a shared room, then it is accessible to them"
+  (testing "given an existing user and a shared room, when checking access, then the room is accessible to that user"
     (let [store (user/create-store)
-          andres (user/create-user! store "andres" :user.type/human)
-          zoe (user/create-user! store "zoe" :user.type/human)
-          room (user/create-shared-room! store "general" "General")]
-      (is (some #{room}
-                (user/list-accessible-rooms store (:user/id andres))))
-      (is (some #{room}
-                (user/list-accessible-rooms store (:user/id zoe)))))))
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (is (user/accessible-room? store (:user/id created-user) (:room/id shared-room)))))
 
-(deftest join-and-leave-room
-  (testing "given an accessible shared room, when a user joins it, then the user becomes an active participant"
+  (testing "given a shared room, when listing rooms, then it is available for later participation flows"
     (let [store (user/create-store)
-          andres (user/create-user! store "andres" :user.type/human)
-          room (user/create-shared-room! store "general" "General")]
-      (user/join-room! store (:user/id andres) (:room/id room))
-      (is (user/active-participant? store (:user/id andres) (:room/id room)))))
+          shared-room (user/create-shared-room! store "General")]
+      (is (= [shared-room]
+             (user/list-rooms store))))))
+
+(deftest participate-in-room
+  (testing "given an accessible shared room, when a user joins, then the user becomes an active participant"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (user/active-participant? store (:user/id created-user) (:room/id shared-room)))))
 
   (testing "given an active participant, when joining again, then participation is not duplicated"
     (let [store (user/create-store)
-          andres (user/create-user! store "andres" :user.type/human)
-          room (user/create-shared-room! store "general" "General")]
-      (user/join-room! store (:user/id andres) (:room/id room))
-      (user/join-room! store (:user/id andres) (:room/id room))
-      (is (= [[(:user/id andres) (:room/id room)]
-              [(:user/id andres) "room:user:andres"]]
-             (user/list-active-participations store)))))
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= 1
+             (user/active-participation-count store (:user/id created-user) (:room/id shared-room))))))
 
-  (testing "given an active participant, when leaving the room, then the user stops participating"
+  (testing "given a participant with messages, when reading the room, then messages are ordered by sequence"
     (let [store (user/create-store)
-          andres (user/create-user! store "andres" :user.type/human)
-          room (user/create-shared-room! store "general" "General")]
-      (user/join-room! store (:user/id andres) (:room/id room))
-      (user/leave-room! store (:user/id andres) (:room/id room))
-      (is (not (user/active-participant? store (:user/id andres) (:room/id room))))))
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 3 "Tres")
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 1 "Uno")
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 2 "Dos")
+      (is (= [1 2 3]
+             (mapv :message/sequence
+                   (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
 
-  (testing "given a user who left an accessible room, when joining again, then the user participates again"
+  (testing "given sent messages in two rooms, when reading each room, then sequences are monotonic per room and Markdown is preserved"
     (let [store (user/create-store)
-          andres (user/create-user! store "andres" :user.type/human)
-          room (user/create-shared-room! store "general" "General")]
-      (user/join-room! store (:user/id andres) (:room/id room))
-      (user/leave-room! store (:user/id andres) (:room/id room))
-      (user/join-room! store (:user/id andres) (:room/id room))
-      (is (user/active-participant? store (:user/id andres) (:room/id room))))))
+          created-user (user/create-user! store "andres" :user.type/human)
+          general-room (user/create-shared-room! store "General")
+          random-room (user/create-shared-room! store "Random")]
+      (user/join-room! store (:user/id created-user) (:room/id general-room))
+      (user/join-room! store (:user/id created-user) (:room/id random-room))
+      (user/send-message! store (:user/id created-user) (:room/id general-room) "Uno **general**")
+      (user/send-message! store (:user/id created-user) (:room/id random-room) "Uno _random_")
+      (user/send-message! store (:user/id created-user) (:room/id general-room) "Dos `general`")
+      (is (= [[1 "Uno **general**"] [2 "Dos `general`"]]
+             (mapv (juxt :message/sequence :message/body-markdown)
+                   (user/read-room store (:user/id created-user) (:room/id general-room)))))
+      (is (= [[1 "Uno _random_"]]
+             (mapv (juxt :message/sequence :message/body-markdown)
+                   (user/read-room store (:user/id created-user) (:room/id random-room)))))))
 
-(deftest send-and-read-room-messages
-  (testing "given an active participant, when sending Markdown messages, then the room keeps them ordered by sequence"
+  (testing "given an active participant, when sending a message, then the room keeps the original Markdown"
     (let [store (user/create-store)
-          andres (user/create-user! store "andres" :user.type/human)
-          room (user/create-shared-room! store "general" "General")]
-      (user/join-room! store (:user/id andres) (:room/id room))
-      (let [first-message (user/send-message! store (:user/id andres) (:room/id room) "Hola **mundo**")
-            second-message (user/send-message! store (:user/id andres) (:room/id room) "Segundo mensaje")]
-        (is (= #:message{:id "message:general:1"
-                         :room-id "general"
-                         :author-id (:user/id andres)
-                         :sequence 1
-                         :body-markdown "Hola **mundo**"}
-               first-message))
-        (is (= 2 (:message/sequence second-message)))
-        (is (= [first-message second-message]
-               (user/read-room-messages store (:user/id andres) (:room/id room)))))))
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= #:message{:id "message:room:shared:general:1"
+                       :room-id (:room/id shared-room)
+                       :author-id (:user/id created-user)
+                       :sequence 1
+                       :body-markdown "Hola **mundo**"}
+             (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")))))
+
+  (testing "given an active participant, when sending a message, then a message-created event is recorded"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (let [message (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")]
+        (is (= [#:event{:id "event:message:room:shared:general:1:created"
+                        :type :message/created
+                        :room-id (:room/id shared-room)
+                        :actor-id (:user/id created-user)
+                        :message-id (:message/id message)}]
+               (user/list-message-events store (:room/id shared-room)))))))
 
   (testing "given a user who is not an active participant, when reading or sending, then access is denied"
     (let [store (user/create-store)
-          andres (user/create-user! store "andres" :user.type/human)
-          room (user/create-shared-room! store "general" "General")]
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"active participation is required"
-                            (user/read-room-messages store (:user/id andres) (:room/id room))))
+                            #"active participation required"
+                            (user/read-room store (:user/id created-user) (:room/id shared-room))))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"active participation is required"
-                            (user/send-message! store (:user/id andres) (:room/id room) "Hola"))))))
+                            #"active participation required"
+                            (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola")))))
+
+  (testing "given an active participant, when leaving and rejoining, then access follows active participation"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/leave-room! store (:user/id created-user) (:room/id shared-room))
+      (is (not (user/active-participant? store (:user/id created-user) (:room/id shared-room))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"active participation required"
+                            (user/read-room store (:user/id created-user) (:room/id shared-room))))
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= []
+             (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
 
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"

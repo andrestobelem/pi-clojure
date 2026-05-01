@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- Ninguna.
+- [#16 Como usuario, quiero crear una sala compartida](https://github.com/andrestobelem/pi-clojure/issues/16)
 
 Procedimiento de trabajo:
 

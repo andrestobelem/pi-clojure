@@ -40,7 +40,9 @@
                     :type :user.type/human}
              created-user))
       (is (= created-user
-             (user/find-by-handle store "andres")))))
+             (user/find-by-handle store "andres")))
+      (is (= created-user
+             (user/find-by-id store (:user/id created-user))))))
 
   (testing "given an empty store, when creating an agent user, then it preserves the agent type"
     (let [store (user/create-store)

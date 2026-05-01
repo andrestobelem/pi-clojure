@@ -61,6 +61,7 @@
 
 (defn create-store []
   (atom #:users{:by-handle {}
+        :users/by-id {}
         :rooms/by-id {}
         :rooms/personal-by-owner-id {}
         :participations/active #{}
@@ -68,6 +69,9 @@
 
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
+
+(defn find-by-id [store user-id]
+  (get-in @store [:users/by-id user-id]))
 
 (defn list-users [store]
   (->> (get-in @store [:users/by-handle])
@@ -93,10 +97,7 @@
   (if (active-participant? store user-id room-id) 1 0))
 
 (defn existing-user-id? [store user-id]
-  (->> (get-in @store [:users/by-handle])
-       vals
-       (some #(= user-id (:user/id %)))
-       boolean))
+  (boolean (find-by-id store user-id)))
 
 (defn accessible-room? [store user-id room-id]
   (let [room (find-room store room-id)]
@@ -129,6 +130,11 @@
 
 (defn user-id-for-handle [handle]
   (str "user:" handle))
+
+(defn persist-user [state created-user]
+  (-> state
+      (assoc-in [:users/by-handle (:user/handle created-user)] created-user)
+      (assoc-in [:users/by-id (:user/id created-user)] created-user)))
 
 (defn room-slug-for-title [title]
   (-> title
@@ -218,7 +224,7 @@
                             (user-id-for-handle handle))]
     (when (find-by-handle store handle)
       (throw (ex-info "handle already exists" {:handle handle})))
-    (swap! store assoc-in [:users/by-handle handle] created-user)
+    (swap! store persist-user created-user)
     (when (= :user.type/human user-type)
       (ensure-personal-room! store created-user))
     created-user))

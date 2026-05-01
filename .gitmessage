@@ -6,6 +6,11 @@
 # - Incluir tests/docs solo si pertenecen al mismo cambio lógico.
 # - El repo debería quedar consistente después de cada commit.
 #
+# TDD / trunk:
+# - Preferir Red -> Green -> Refactor.
+# - Integrar cambios pequeños en main frecuentemente.
+# - Evitar ramas de larga vida.
+#
 # Tips:
 # - Usa git add -p para separar cambios mezclados.
 # - Si cuesta elegir un solo type/scope, divide el commit.

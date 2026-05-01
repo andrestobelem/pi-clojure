@@ -4,15 +4,35 @@
 
 (def min-handle-length 3)
 (def max-handle-length 39)
+(def allowed-handle-pattern #"[a-z0-9_-]+")
+(def edge-separator-pattern #"(^[-_]|[-_]$)")
+
+(defn required-handle? [handle]
+  (and (string? handle)
+       (not (str/blank? handle))))
+
+(defn without-surrounding-whitespace? [handle]
+  (= handle (str/trim handle)))
+
+(defn lowercase-handle? [handle]
+  (= handle (str/lower-case handle)))
+
+(defn handle-length-valid? [handle]
+  (<= min-handle-length (count handle) max-handle-length))
+
+(defn supported-handle-characters? [handle]
+  (boolean (re-matches allowed-handle-pattern handle)))
+
+(defn without-edge-separators? [handle]
+  (not (re-find edge-separator-pattern handle)))
 
 (defn valid-handle? [handle]
-  (and (string? handle)
-       (not (str/blank? handle))
-       (= handle (str/trim handle))
-       (= handle (str/lower-case handle))
-       (<= min-handle-length (count handle) max-handle-length)
-       (boolean (re-matches #"[a-z0-9_-]+" handle))
-       (not (re-find #"(^[-_]|[-_]$)" handle))))
+  (and (required-handle? handle)
+       (without-surrounding-whitespace? handle)
+       (lowercase-handle? handle)
+       (handle-length-valid? handle)
+       (supported-handle-characters? handle)
+       (without-edge-separators? handle)))
 
 (def user-types #{:user.type/human
                   :user.type/agent})
@@ -37,20 +57,20 @@
        (mapv val)))
 
 (defn validate-handle! [handle]
-  (when (str/blank? handle)
+  (when-not (required-handle? handle)
     (throw (ex-info "handle is required" {:handle handle})))
-  (when (not= handle (str/trim handle))
+  (when-not (without-surrounding-whitespace? handle)
     (throw (ex-info "handle cannot have surrounding whitespace"
                     {:handle handle})))
-  (when (not= handle (str/lower-case handle))
+  (when-not (lowercase-handle? handle)
     (throw (ex-info "handle must be lowercase" {:handle handle})))
   (when (< (count handle) min-handle-length)
     (throw (ex-info "handle is too short" {:handle handle})))
   (when (> (count handle) max-handle-length)
     (throw (ex-info "handle is too long" {:handle handle})))
-  (when-not (re-matches #"[a-z0-9_-]+" handle)
+  (when-not (supported-handle-characters? handle)
     (throw (ex-info "handle has unsupported characters" {:handle handle})))
-  (when (re-find #"(^[-_]|[-_]$)" handle)
+  (when-not (without-edge-separators? handle)
     (throw (ex-info "handle cannot start or end with a separator"
                     {:handle handle}))))
 

@@ -11,6 +11,11 @@
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
 
+(defn list-users [store]
+  (->> (get-in @store [:users/by-handle])
+       (sort-by key)
+       (mapv val)))
+
 (defn create-human! [store handle]
   (when (str/blank? handle)
     (throw (ex-info "handle is required" {:handle handle})))

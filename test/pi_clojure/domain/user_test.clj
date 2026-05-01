@@ -30,3 +30,11 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle is required"
                             (user/create-human! store ""))))))
+
+(deftest list-users-in-store
+  (testing "lists created users ordered by handle"
+    (let [store (user/create-store)
+          zoe (user/create-human! store "zoe")
+          andres (user/create-human! store "andres")]
+      (is (= [andres zoe]
+             (user/list-users store))))))

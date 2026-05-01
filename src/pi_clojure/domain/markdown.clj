@@ -74,8 +74,12 @@
       (valid-result body-markdown)
       (error-result errors))))
 
+(defn validation-error-message [result]
+  (or (some-> result :errors first :error/message)
+      "El mensaje Markdown no es válido"))
+
 (defn validate-message-markdown! [body-markdown]
   (let [result (validate-message-markdown body-markdown)]
     (when-not (:valid? result)
-      (throw (ex-info "invalid Markdown message" result)))
+      (throw (ex-info (validation-error-message result) result)))
     body-markdown))

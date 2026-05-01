@@ -40,6 +40,20 @@
            (markdown/validate-message-markdown
             "Hola <script>alert(1)</script> [click](javascript:alert(1))")))))
 
+(deftest invalid-markdown-exceptions-are-clear
+  (testing "given invalid Markdown, when requiring valid Markdown, then the exception message is understandable and data is structured"
+    (try
+      (markdown/validate-message-markdown! "<b>Hola</b>")
+      (is false "validate-message-markdown! should reject raw HTML")
+      (catch clojure.lang.ExceptionInfo ex
+        (is (= "El mensaje contiene HTML crudo no permitido"
+               (ex-message ex)))
+        (is (= {:valid? false
+                :errors [#:error{:type :markdown/raw-html
+                                  :message "El mensaje contiene HTML crudo no permitido"
+                                  :path [:message/body]}]}
+               (ex-data ex)))))))
+
 (deftest send-message-validates-markdown-before-persisting
   (testing "given invalid Markdown, when sending a message, then it is rejected and not persisted"
     (let [store (user/create-store)

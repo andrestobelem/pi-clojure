@@ -1,0 +1,11 @@
+# <type>[optional scope][!]: <description>
+#
+# Commits atómicos:
+# - Un único cambio lógico por commit.
+# - No mezclar features, fixes, refactors, docs o formateos no relacionados.
+# - Incluir tests/docs solo si pertenecen al mismo cambio lógico.
+# - El repo debería quedar consistente después de cada commit.
+#
+# Tips:
+# - Usa git add -p para separar cambios mezclados.
+# - Si cuesta elegir un solo type/scope, divide el commit.

@@ -213,6 +213,23 @@
              (mapv :message/sequence
                    (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
 
+  (testing "given sent messages in two rooms, when reading each room, then sequences are monotonic per room and Markdown is preserved"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          general-room (user/create-shared-room! store "General")
+          random-room (user/create-shared-room! store "Random")]
+      (user/join-room! store (:user/id created-user) (:room/id general-room))
+      (user/join-room! store (:user/id created-user) (:room/id random-room))
+      (user/send-message! store (:user/id created-user) (:room/id general-room) "Uno **general**")
+      (user/send-message! store (:user/id created-user) (:room/id random-room) "Uno _random_")
+      (user/send-message! store (:user/id created-user) (:room/id general-room) "Dos `general`")
+      (is (= [[1 "Uno **general**"] [2 "Dos `general`"]]
+             (mapv (juxt :message/sequence :message/body-markdown)
+                   (user/read-room store (:user/id created-user) (:room/id general-room)))))
+      (is (= [[1 "Uno _random_"]]
+             (mapv (juxt :message/sequence :message/body-markdown)
+                   (user/read-room store (:user/id created-user) (:room/id random-room)))))))
+
   (testing "given an active participant, when sending a message, then the room keeps the original Markdown"
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)

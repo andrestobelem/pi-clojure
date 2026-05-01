@@ -1,5 +1,6 @@
 (ns pi-clojure.domain.user-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.test :refer [deftest is testing]]
             [pi-clojure.domain.user :as user]))
 
 (deftest create-human-user-with-handle
@@ -7,6 +8,18 @@
     (is (= #:user{:handle "andres"
                   :type :user.type/human}
            (user/create-human "andres")))))
+
+(deftest user-specs
+  (testing "validates canonical handles"
+    (is (s/valid? :user/handle "andres_42-test"))
+    (is (not (s/valid? :user/handle "Andres")))
+    (is (not (s/valid? :user/handle " andres")))
+    (is (not (s/valid? :user/handle "andres."))))
+
+  (testing "validates human users"
+    (is (s/valid? :user/user
+                  #:user{:handle "andres"
+                         :type :user.type/human}))))
 
 (deftest create-human-user-in-store
   (testing "persists a human user with a unique handle"

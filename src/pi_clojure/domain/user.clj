@@ -1,8 +1,22 @@
 (ns pi-clojure.domain.user
-  (:require [clojure.string :as str]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]))
 
 (def min-handle-length 3)
 (def max-handle-length 39)
+
+(defn valid-handle? [handle]
+  (and (string? handle)
+       (not (str/blank? handle))
+       (= handle (str/trim handle))
+       (= handle (str/lower-case handle))
+       (<= min-handle-length (count handle) max-handle-length)
+       (boolean (re-matches #"[a-z0-9_-]+" handle))
+       (not (re-find #"(^[-_]|[-_]$)" handle))))
+
+(s/def :user/handle valid-handle?)
+(s/def :user/type #{:user.type/human})
+(s/def :user/user (s/keys :req [:user/handle :user/type]))
 
 (defn create-human [handle]
   #:user{:handle handle

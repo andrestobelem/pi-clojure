@@ -67,10 +67,10 @@
       (println (str handle " entró a " room-name)))
 
     "send"
-    (let [[room-name handle body-markdown] args
+    (let [[room-name handle body-markdown client-txn-id] args
           user (require-user store handle)
           room (require-room store room-name)]
-      (chat/send-message! store (:user/id user) (:room/id room) body-markdown)
+      (chat/send-message! store (:user/id user) (:room/id room) body-markdown client-txn-id)
       (println (str "Mensaje enviado a " room-name " por " handle)))
 
     "show"

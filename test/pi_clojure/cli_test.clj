@@ -22,7 +22,9 @@
       (is (= "andres entró a general\n"
              (run! state-file "join" "general" "andres")))
       (is (= "Mensaje enviado a general por andres\n"
-             (run! state-file "send" "general" "andres" "Hola **mundo**")))
+             (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
+      (is (= "Mensaje enviado a general por andres\n"
+             (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
       (is (= "# General\n\n## Mensajes\n\n1. andres: Hola **mundo**\n"
              (run! state-file "show" "general" "andres")))
       (is (= "# General\n\n## Mensajes\n\n### Mensaje 1\n\nHola **mundo**\n"

@@ -153,6 +153,10 @@ Procedimiento de trabajo:
 
 - [`docs/research/2026-05-01-pairing-tdd-reset.md`](docs/research/2026-05-01-pairing-tdd-reset.md)
 
+Para que un reintento no duplique mensajes, `chat send` acepta un
+`client-txn-id` estable como quinto argumento. Repetir el mismo
+`author-id + client-txn-id` devuelve el mismo mensaje lógico.
+
 Tablero GitHub Projects:
 
 - [`pi-clojure MVP`](https://github.com/users/andrestobelem/projects/2)

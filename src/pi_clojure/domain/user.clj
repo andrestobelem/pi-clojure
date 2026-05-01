@@ -67,6 +67,7 @@
         :rooms/personal-by-owner-id {}
         :participations/active #{}
         :messages/by-room-id {}
+        :messages/by-client-txn-id {}
         :events/by-room-id {}}))
 
 (defn find-by-handle [store handle]
@@ -186,13 +187,27 @@
 (defn messages-in-room [store room-id]
   (get-in @store [:messages/by-room-id room-id] []))
 
-(defn add-message! [store room-id author-id sequence body-markdown]
-  (let [message #:message{:id (str "message:" room-id ":" sequence)
-                          :room-id room-id
-                          :author-id author-id
-                          :sequence sequence
-                          :body-markdown body-markdown}]
-    (swap! store update-in [:messages/by-room-id room-id] (fnil conj []) message)
+(defn message-txn-key [author-id client-txn-id]
+  [author-id client-txn-id])
+
+(defn find-message-by-client-txn-id [store author-id client-txn-id]
+  (get-in @store [:messages/by-client-txn-id (message-txn-key author-id client-txn-id)]))
+
+(defn add-message! [store room-id author-id sequence body-markdown & [client-txn-id]]
+  (let [message (cond-> #:message{:id (str "message:" room-id ":" sequence)
+                                  :room-id room-id
+                                  :author-id author-id
+                                  :sequence sequence
+                                  :body-markdown body-markdown}
+                  client-txn-id
+                  (assoc :message/client-txn-id client-txn-id))]
+    (swap! store
+           (fn [state]
+             (cond-> (update-in state [:messages/by-room-id room-id] (fnil conj []) message)
+               client-txn-id
+               (assoc-in [:messages/by-client-txn-id
+                          (message-txn-key author-id client-txn-id)]
+                         message))))
     message))
 
 (defn message-created-event [message]
@@ -232,16 +247,25 @@
 (defn next-message-sequence [store room-id]
   (inc (reduce max 0 (map :message/sequence (messages-in-room store room-id)))))
 
-(defn send-message! [store user-id room-id body-markdown]
-  (require-active-participant! store user-id room-id)
+(defn create-message! [store user-id room-id body-markdown client-txn-id]
   (markdown/validate-message-markdown! body-markdown)
   (let [message (add-message! store
                               room-id
                               user-id
                               (next-message-sequence store room-id)
-                              body-markdown)]
+                              body-markdown
+                              client-txn-id)]
     (record-message-created-event! store message)
     message))
+
+(defn send-message!
+  ([store user-id room-id body-markdown]
+   (require-active-participant! store user-id room-id)
+   (create-message! store user-id room-id body-markdown nil))
+  ([store user-id room-id body-markdown client-txn-id]
+   (require-active-participant! store user-id room-id)
+   (or (find-message-by-client-txn-id store user-id client-txn-id)
+       (create-message! store user-id room-id body-markdown client-txn-id))))
 
 (defn personal-room-id-for-user [created-user]
   (str "room:" (:user/id created-user)))

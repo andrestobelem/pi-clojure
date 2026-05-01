@@ -279,6 +279,27 @@
                         :message-id (:message/id message)}]
                (user/list-message-events store (:room/id shared-room)))))))
 
+  (testing "given a repeated client transaction, when sending again, then it returns the same message without duplicate events"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (let [first-send (user/send-message! store
+                                           (:user/id created-user)
+                                           (:room/id shared-room)
+                                           "Hola **mundo**"
+                                           "client-txn-1")
+            retry-send (user/send-message! store
+                                           (:user/id created-user)
+                                           (:room/id shared-room)
+                                           "Hola **mundo**"
+                                           "client-txn-1")]
+        (is (= first-send retry-send))
+        (is (= [first-send]
+               (user/read-room store (:user/id created-user) (:room/id shared-room))))
+        (is (= 1
+               (count (user/list-message-events store (:room/id shared-room))))))))
+
   (testing "given a user who is not an active participant, when reading or sending, then access is denied"
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)

@@ -65,7 +65,7 @@ Ejemplo deseado:
 ```sh
 chat create-user andres
 chat create-room general
-chat send general andres "Hola **mundo**"
+chat send general andres "Hola **mundo**" client-txn-1
 chat show general
 chat export general
 ```

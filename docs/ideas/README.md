@@ -21,5 +21,6 @@ con documentación operativa o investigación externa.
 - [`markdown-linting.md`](markdown-linting.md): linting de mensajes y conversaciones.
 - [`markdown-validation.md`](markdown-validation.md): validación y seguridad de mensajes Markdown.
 - [`mvp-1-chat-markdown-exportable.md`](mvp-1-chat-markdown-exportable.md): definición del primer MVP.
+- [`next-backlog.md`](next-backlog.md): backlog candidato sintetizado desde discovery paralelo.
 - [`personal-room.md`](personal-room.md): sala personal privada por usuario.
 - [`vision.md`](vision.md): visión del producto y preguntas estratégicas.

@@ -63,7 +63,8 @@
   (atom #:users{:by-handle {}
         :rooms/by-id {}
         :rooms/personal-by-owner-id {}
-        :participations/active #{}}))
+        :participations/active #{}
+        :messages/by-room-id {}}))
 
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
@@ -87,6 +88,9 @@
 
 (defn active-participant? [store user-id room-id]
   (contains? (get-in @store [:participations/active]) [user-id room-id]))
+
+(defn active-participation-count [store user-id room-id]
+  (if (active-participant? store user-id room-id) 1 0))
 
 (defn existing-user-id? [store user-id]
   (->> (get-in @store [:users/by-handle])
@@ -137,6 +141,53 @@
                     :title title}]
     (swap! store assoc-in [:rooms/by-id (:room/id room)] room)
     room))
+
+(defn join-room! [store user-id room-id]
+  (when-not (accessible-room? store user-id room-id)
+    (throw (ex-info "room is not accessible"
+                    {:user-id user-id
+                     :room-id room-id})))
+  (swap! store update-in [:participations/active] conj [user-id room-id])
+  #:participation{:user-id user-id
+                  :room-id room-id
+                  :active? true})
+
+(defn leave-room! [store user-id room-id]
+  (swap! store update-in [:participations/active] disj [user-id room-id])
+  #:participation{:user-id user-id
+                  :room-id room-id
+                  :active? false})
+
+(defn require-active-participant! [store user-id room-id]
+  (when-not (active-participant? store user-id room-id)
+    (throw (ex-info "active participation required"
+                    {:user-id user-id
+                     :room-id room-id}))))
+
+(defn messages-in-room [store room-id]
+  (get-in @store [:messages/by-room-id room-id] []))
+
+(defn add-message! [store room-id author-id sequence body-markdown]
+  (let [message #:message{:id (str "message:" room-id ":" sequence)
+                          :room-id room-id
+                          :author-id author-id
+                          :sequence sequence
+                          :body-markdown body-markdown}]
+    (swap! store update-in [:messages/by-room-id room-id] (fnil conj []) message)
+    message))
+
+(defn read-room [store user-id room-id]
+  (require-active-participant! store user-id room-id)
+  (->> (messages-in-room store room-id)
+       (sort-by :message/sequence)
+       vec))
+
+(defn next-message-sequence [store room-id]
+  (inc (reduce max 0 (map :message/sequence (messages-in-room store room-id)))))
+
+(defn send-message! [store user-id room-id body-markdown]
+  (require-active-participant! store user-id room-id)
+  (add-message! store room-id user-id (next-message-sequence store room-id) body-markdown))
 
 (defn personal-room-id-for-user [created-user]
   (str "room:" (:user/id created-user)))

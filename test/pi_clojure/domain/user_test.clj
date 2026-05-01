@@ -182,6 +182,72 @@
       (is (= [shared-room]
              (user/list-rooms store))))))
 
+(deftest participate-in-room
+  (testing "given an accessible shared room, when a user joins, then the user becomes an active participant"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (user/active-participant? store (:user/id created-user) (:room/id shared-room)))))
+
+  (testing "given an active participant, when joining again, then participation is not duplicated"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= 1
+             (user/active-participation-count store (:user/id created-user) (:room/id shared-room))))))
+
+  (testing "given a participant with messages, when reading the room, then messages are ordered by sequence"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 3 "Tres")
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 1 "Uno")
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 2 "Dos")
+      (is (= [1 2 3]
+             (mapv :message/sequence
+                   (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
+
+  (testing "given an active participant, when sending a message, then the room keeps the original Markdown"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= #:message{:id "message:room:shared:general:1"
+                       :room-id (:room/id shared-room)
+                       :author-id (:user/id created-user)
+                       :sequence 1
+                       :body-markdown "Hola **mundo**"}
+             (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")))))
+
+  (testing "given a user who is not an active participant, when reading or sending, then access is denied"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"active participation required"
+                            (user/read-room store (:user/id created-user) (:room/id shared-room))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"active participation required"
+                            (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola")))))
+
+  (testing "given an active participant, when leaving and rejoining, then access follows active participation"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/leave-room! store (:user/id created-user) (:room/id shared-room))
+      (is (not (user/active-participant? store (:user/id created-user) (:room/id shared-room))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"active participation required"
+                            (user/read-room store (:user/id created-user) (:room/id shared-room))))
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= []
+             (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
+
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"
     (let [store (user/create-store)

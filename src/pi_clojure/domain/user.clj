@@ -204,9 +204,10 @@
        (sort-by :message/sequence)
        vec))
 
-(defn export-room-markdown [store user-id room-id]
+(defn export-room-markdown [store room-id]
   (let [room (find-room store room-id)
-        messages (read-room store user-id room-id)]
+        messages (->> (messages-in-room store room-id)
+                      (sort-by :message/sequence))]
     (str "# " (:room/title room) "\n\n"
          "## Mensajes\n\n"
          (str/join "\n\n"

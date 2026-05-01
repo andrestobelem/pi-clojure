@@ -147,7 +147,7 @@ Labels principales:
 
 Historia activa:
 
-- [#29 Documentar trabajo paralelo con múltiples pi](https://github.com/andrestobelem/pi-clojure/issues/29)
+- Ninguna.
 
 Procedimiento de trabajo:
 

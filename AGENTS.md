@@ -1,5 +1,7 @@
 # Agent instructions
 
+Responder siempre en español, salvo que el usuario pida explícitamente otro idioma.
+
 Este repo usa:
 
 - Test Driven Development / Test Driven Design
@@ -24,6 +26,21 @@ Usar los tests como feedback de diseño, no solo como cobertura.
 - Integrar cambios pequeños y frecuentes.
 - Hacer commits pequeños, atómicos y con una intención clara.
 - Usar Conventional Commits.
+
+## Documentación externa
+
+Cuando necesitemos documentación actualizada de librerías o herramientas, usar
+Context7 desde CLI si está disponible:
+
+```sh
+set -a
+[ -f .env.local ] && . ./.env.local
+set +a
+npx ctx7 library <nombre> "<consulta>"
+npx ctx7 docs <library-id> "<consulta>"
+```
+
+No mostrar ni commitear `CONTEXT7_API_KEY`.
 
 ## Markdown
 

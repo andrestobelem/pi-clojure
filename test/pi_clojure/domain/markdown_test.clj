@@ -38,7 +38,14 @@
                               :message "El mensaje contiene un link con protocolo no permitido"
                               :path [:message/body]}]}
            (markdown/validate-message-markdown
-            "Hola <script>alert(1)</script> [click](javascript:alert(1))")))))
+            "Hola <script>alert(1)</script> [click](javascript:alert(1))"))))
+
+  (testing "given an HTML comment, when validating, then it is rejected as raw HTML"
+    (is (= {:valid? false
+            :errors [#:error{:type :markdown/raw-html
+                              :message "El mensaje contiene HTML crudo no permitido"
+                              :path [:message/body]}]}
+           (markdown/validate-message-markdown "Hola <!-- secreto -->")))))
 
 (deftest invalid-markdown-exceptions-are-clear
   (testing "given invalid Markdown, when requiring valid Markdown, then the exception message is understandable and data is structured"

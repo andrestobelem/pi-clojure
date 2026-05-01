@@ -3,7 +3,7 @@
 
 (def max-message-markdown-length 4000)
 
-(def raw-html-pattern #"(?is)<\s*/?\s*[a-z][^>]*>")
+(def raw-html-pattern #"(?is)<!--.*?-->|<\s*/?\s*[a-z][^>]*>")
 (def unsafe-link-pattern #"(?i)\]\(\s*(?!https?://)[a-z][a-z0-9+.-]*:")
 
 (defn valid-result [body-markdown]

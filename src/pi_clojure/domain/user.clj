@@ -1,6 +1,12 @@
 (ns pi-clojure.domain.user
   (:require [clojure.string :as str]))
 
+(def min-handle-length 3)
+(def max-handle-length 39)
+
+(defn normalize-handle [handle]
+  (some-> handle str/trim str/lower-case))
+
 (defn create-human [handle]
   #:user{:handle handle
          :type :user.type/human})
@@ -16,21 +22,23 @@
        (sort-by key)
        (mapv val)))
 
-(defn create-human! [store handle]
+(defn validate-handle! [handle]
   (when (str/blank? handle)
     (throw (ex-info "handle is required" {:handle handle})))
-  (let [normalized-handle (-> handle str/trim str/lower-case)
+  (when (< (count handle) min-handle-length)
+    (throw (ex-info "handle is too short" {:handle handle})))
+  (when (> (count handle) max-handle-length)
+    (throw (ex-info "handle is too long" {:handle handle})))
+  (when-not (re-matches #"[a-z0-9_-]+" handle)
+    (throw (ex-info "handle has unsupported characters" {:handle handle})))
+  (when (re-find #"(^[-_]|[-_]$)" handle)
+    (throw (ex-info "handle cannot start or end with a separator"
+                    {:handle handle}))))
+
+(defn create-human! [store handle]
+  (let [normalized-handle (normalize-handle handle)
         human-user (create-human normalized-handle)]
-    (when (< (count normalized-handle) 3)
-      (throw (ex-info "handle is too short" {:handle normalized-handle})))
-    (when (> (count normalized-handle) 39)
-      (throw (ex-info "handle is too long" {:handle normalized-handle})))
-    (when-not (re-matches #"[a-z0-9_-]+" normalized-handle)
-      (throw (ex-info "handle has unsupported characters"
-                      {:handle normalized-handle})))
-    (when (re-find #"(^[-_]|[-_]$)" normalized-handle)
-      (throw (ex-info "handle cannot start or end with a separator"
-                      {:handle normalized-handle})))
+    (validate-handle! normalized-handle)
     (when (find-by-handle store normalized-handle)
       (throw (ex-info "handle already exists" {:handle normalized-handle})))
     (swap! store assoc-in [:users/by-handle normalized-handle] human-user)

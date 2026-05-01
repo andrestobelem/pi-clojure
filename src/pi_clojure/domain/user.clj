@@ -5,14 +5,14 @@
          :type :user.type/human})
 
 (defn create-store []
-  (atom {}))
+  (atom #:users{:by-handle {}}))
 
 (defn find-by-handle [store handle]
-  (get @store handle))
+  (get-in @store [:users/by-handle handle]))
 
 (defn create-human! [store handle]
   (let [human-user (create-human handle)]
     (when (find-by-handle store handle)
       (throw (ex-info "handle already exists" {:handle handle})))
-    (swap! store assoc handle human-user)
+    (swap! store assoc-in [:users/by-handle handle] human-user)
     human-user))

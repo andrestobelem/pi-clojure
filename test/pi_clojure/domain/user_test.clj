@@ -25,6 +25,16 @@
                             #"handle already exists"
                             (user/create-human! store "andres")))))
 
+  (testing "normalizes handles before enforcing uniqueness"
+    (let [store (user/create-store)
+          created-user (user/create-human! store " andres ")]
+      (is (= #:user{:handle "andres"
+                    :type :user.type/human}
+             created-user))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle already exists"
+                            (user/create-human! store "andres")))))
+
   (testing "rejects blank handles"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo

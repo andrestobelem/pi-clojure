@@ -19,8 +19,9 @@
 (defn create-human! [store handle]
   (when (str/blank? handle)
     (throw (ex-info "handle is required" {:handle handle})))
-  (let [human-user (create-human handle)]
-    (when (find-by-handle store handle)
-      (throw (ex-info "handle already exists" {:handle handle})))
-    (swap! store assoc-in [:users/by-handle handle] human-user)
+  (let [normalized-handle (str/trim handle)
+        human-user (create-human normalized-handle)]
+    (when (find-by-handle store normalized-handle)
+      (throw (ex-info "handle already exists" {:handle normalized-handle})))
+    (swap! store assoc-in [:users/by-handle normalized-handle] human-user)
     human-user))

@@ -1,6 +1,7 @@
 (ns pi-clojure.domain.user
   (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [pi-clojure.domain.markdown :as markdown]))
 
 (def min-handle-length 3)
 (def max-handle-length 39)
@@ -233,6 +234,7 @@
 
 (defn send-message! [store user-id room-id body-markdown]
   (require-active-participant! store user-id room-id)
+  (markdown/validate-message-markdown! body-markdown)
   (let [message (add-message! store
                               room-id
                               user-id

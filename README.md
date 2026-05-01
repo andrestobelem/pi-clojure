@@ -53,18 +53,25 @@ historia activa.
 Buenas prácticas:
 
 - Integrar cambios pequeños en `main` frecuentemente.
-- Para cada story, se puede crear una branch corta desde `main`:
+- Para cada story, crear la branch desde GitHub para que quede vinculada al
+  issue:
 
   ```sh
   git switch main
   git pull --ff-only
-  git switch -c story/<issue-number>-<slug>
+  gh issue develop <issue-number> \
+    --name story/<issue-number>-<slug> \
+    --base main \
+    --checkout
   ```
 
 - Ejemplo:
 
   ```sh
-  git switch -c story/21-personal-room
+  gh issue develop 21 \
+    --name story/21-personal-room \
+    --base main \
+    --checkout
   ```
 
 - Evitar ramas de larga vida.

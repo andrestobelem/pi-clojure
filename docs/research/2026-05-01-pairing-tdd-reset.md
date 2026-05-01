@@ -15,7 +15,8 @@ borrar `src/` y `test/` si eso ayuda a recuperar claridad de diseño.
 - Trabajamos como pair programming: la persona usuaria decide intención y
   prioridad; el agente propone el siguiente micro-paso y ejecuta cambios.
 - Trabajamos de a una sola historia activa en GitHub Projects.
-- Podemos crear una branch corta por story desde `main`, con formato `story/<issue-number>-<slug>`.
+- Creamos la branch corta desde GitHub con `gh issue develop` para que quede
+  vinculada al issue, con formato `story/<issue-number>-<slug>`.
 - La historia se mueve a `In Progress` al comenzar y vuelve a `Todo` si pausamos
   antes de escribir o conservar código.
 - Cada cambio de comportamiento empieza con un test rojo visible.
@@ -38,14 +39,18 @@ Formato:
 Como <usuario>, quiero <capacidad>, para <beneficio>.
 ```
 
-### 2. Crear o verificar branch corta
+### 2. Crear o verificar branch corta desde GitHub
 
-Si vamos a usar branch por story, crearla desde `main` antes de escribir código:
+Si vamos a usar branch por story, crearla con GitHub CLI antes de escribir
+código para que quede vinculada al issue:
 
 ```sh
 git switch main
 git pull --ff-only
-git switch -c story/<issue-number>-<slug>
+gh issue develop <issue-number> \
+  --name story/<issue-number>-<slug> \
+  --base main \
+  --checkout
 ```
 
 La branch debe vivir poco y volver rápido a `main`.

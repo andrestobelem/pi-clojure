@@ -30,7 +30,8 @@ implementación, preservando documentación, decisiones, backlog y tooling.
 ## Git
 
 - `main` es la rama principal de integración.
-- Se puede crear una branch corta por story desde `main`, con formato `story/<issue-number>-<slug>`.
+- Crear la branch corta por story desde GitHub con `gh issue develop`, basada
+  en `main` y con formato `story/<issue-number>-<slug>`.
 - Evitar ramas de larga vida.
 - Integrar cambios pequeños y frecuentes.
 - Hacer commits pequeños, atómicos y con una intención clara.

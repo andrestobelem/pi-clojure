@@ -35,7 +35,8 @@
   (testing "given an empty store, when creating a user, then it persists the user by handle"
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)]
-      (is (= #:user{:handle "andres"
+      (is (= #:user{:id "user:andres"
+                    :handle "andres"
                     :type :user.type/human}
              created-user))
       (is (= created-user
@@ -44,7 +45,8 @@
   (testing "given an empty store, when creating an agent user, then it preserves the agent type"
     (let [store (user/create-store)
           created-user (user/create-user! store "agent" :user.type/agent)]
-      (is (= #:user{:handle "agent"
+      (is (= #:user{:id "user:agent"
+                    :handle "agent"
                     :type :user.type/agent}
              created-user))))
 
@@ -75,7 +77,8 @@
 
   (testing "given a handle with allowed characters, when creating a user, then it accepts the handle"
     (let [store (user/create-store)]
-      (is (= #:user{:handle "andres_42-test"
+      (is (= #:user{:id "user:andres_42-test"
+                    :handle "andres_42-test"
                     :type :user.type/human}
              (user/create-user! store "andres_42-test" :user.type/human)))))
 
@@ -129,6 +132,32 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle is reserved"
                             (user/create-user! store "support" :user.type/human))))))
+
+(deftest create-personal-room-for-human-user
+  (testing "given an empty store, when creating a human user, then it creates a private user room owned by the user"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)]
+      (is (= #:room{:id "room:user:andres"
+                    :type :room.type/user
+                    :title "andres"
+                    :owner-id (:user/id created-user)
+                    :visibility :room.visibility/private}
+             (user/find-personal-room-by-owner store (:user/id created-user))))))
+
+  (testing "given a created human user, when checking participation, then the owner is an active participant in the personal room"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          personal-room (user/find-personal-room-by-owner store (:user/id created-user))]
+      (is (user/active-participant? store (:user/id created-user) (:room/id personal-room)))))
+
+  (testing "given an existing personal room, when ensuring it again, then it does not duplicate the room"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          personal-room (user/find-personal-room-by-owner store (:user/id created-user))]
+      (is (= personal-room
+             (user/ensure-personal-room! store created-user)))
+      (is (= [personal-room]
+             (user/list-rooms store))))))
 
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"

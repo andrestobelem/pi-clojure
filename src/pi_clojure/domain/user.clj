@@ -60,7 +60,10 @@
          :type user-type})
 
 (defn create-store []
-  (atom #:users{:by-handle {}}))
+  (atom #:users{:by-handle {}
+        :rooms/by-id {}
+        :rooms/personal-by-owner-id {}
+        :participations/active #{}}))
 
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
@@ -69,6 +72,18 @@
   (->> (get-in @store [:users/by-handle])
        (sort-by key)
        (mapv val)))
+
+(defn find-personal-room-by-owner [store owner-id]
+  (when-let [room-id (get-in @store [:rooms/personal-by-owner-id owner-id])]
+    (get-in @store [:rooms/by-id room-id])))
+
+(defn list-rooms [store]
+  (->> (get-in @store [:rooms/by-id])
+       (sort-by key)
+       (mapv val)))
+
+(defn active-participant? [store user-id room-id]
+  (contains? (get-in @store [:participations/active]) [user-id room-id]))
 
 (defn validate-handle! [handle]
   (when-not (required-handle? handle)
@@ -93,10 +108,39 @@
   (when-not (available-handle-name? handle)
     (throw (ex-info "handle is reserved" {:handle handle}))))
 
+(defn user-id-for-handle [handle]
+  (str "user:" handle))
+
+(defn personal-room-id-for-user [created-user]
+  (str "room:" (:user/id created-user)))
+
+(defn ensure-personal-room! [store created-user]
+  (or (find-personal-room-by-owner store (:user/id created-user))
+      (let [personal-room #:room{:id (personal-room-id-for-user created-user)
+                                 :type :room.type/user
+                                 :title (:user/handle created-user)
+                                 :owner-id (:user/id created-user)
+                                 :visibility :room.visibility/private}]
+        (swap! store
+               (fn [state]
+                 (-> state
+                     (assoc-in [:rooms/by-id (:room/id personal-room)] personal-room)
+                     (assoc-in [:rooms/personal-by-owner-id (:user/id created-user)]
+                               (:room/id personal-room))
+                     (update-in [:participations/active]
+                                conj
+                                [(:user/id created-user)
+                                 (:room/id personal-room)]))))
+        personal-room)))
+
 (defn create-user! [store handle user-type]
   (validate-handle! handle)
-  (let [created-user (create-user handle user-type)]
+  (let [created-user (assoc (create-user handle user-type)
+                            :user/id
+                            (user-id-for-handle handle))]
     (when (find-by-handle store handle)
       (throw (ex-info "handle already exists" {:handle handle})))
     (swap! store assoc-in [:users/by-handle handle] created-user)
+    (when (= :user.type/human user-type)
+      (ensure-personal-room! store created-user))
     created-user))

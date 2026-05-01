@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- Ninguna.
+- [#1 Definir modelo mínimo de dominio](https://github.com/andrestobelem/pi-clojure/issues/1)
 
 Procedimiento de trabajo:
 

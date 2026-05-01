@@ -73,7 +73,16 @@
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle is too long"
-                            (user/create-human! store "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))))))
+                            (user/create-human! store "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")))))
+
+  (testing "rejects handles that start or end with separators"
+    (let [store (user/create-store)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle cannot start or end with a separator"
+                            (user/create-human! store "-andres")))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle cannot start or end with a separator"
+                            (user/create-human! store "andres_"))))))
 
 (deftest list-users-in-store
   (testing "lists created users ordered by handle"

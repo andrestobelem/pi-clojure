@@ -28,6 +28,9 @@
     (when-not (re-matches #"[a-z0-9_-]+" normalized-handle)
       (throw (ex-info "handle has unsupported characters"
                       {:handle normalized-handle})))
+    (when (re-find #"(^[-_]|[-_]$)" normalized-handle)
+      (throw (ex-info "handle cannot start or end with a separator"
+                      {:handle normalized-handle})))
     (when (find-by-handle store normalized-handle)
       (throw (ex-info "handle already exists" {:handle normalized-handle})))
     (swap! store assoc-in [:users/by-handle normalized-handle] human-user)

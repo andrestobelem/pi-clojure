@@ -92,11 +92,30 @@ gh project item-list 2 --owner andrestobelem --format json --limit 20 \
 ```
 
 Mover una historia a `Todo`, `In Progress` o `Done` requiere el id del proyecto,
-el campo `Status` y el option id correspondiente. Consultarlos con:
+el id del item, el campo `Status` y el option id correspondiente. Consultarlos
+con:
 
 ```sh
 gh project view 2 --owner andrestobelem --format json --jq '.id'
 gh project field-list 2 --owner andrestobelem --format json
+gh project item-list 2 --owner andrestobelem --format json --limit 100 \
+  --jq '.items[] | select(.content.number==20) | {id, status:.status, title:.content.title}'
+```
+
+Mover un item a `Done`:
+
+```sh
+gh project item-edit \
+  --project-id <project-id> \
+  --id <item-id> \
+  --field-id <status-field-id> \
+  --single-select-option-id <done-option-id>
+```
+
+Cerrar el issue con comentario de cierre:
+
+```sh
+gh issue close 20 --comment "Implementado en <commit-hash>.\n\nChecks:\n- clj-kondo --lint src test\n- clojure -M:test"
 ```
 
 ## Dolt

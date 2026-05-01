@@ -26,12 +26,14 @@ Pasos:
    ```
 
 9. Refactorizar solo con la suite verde.
-10. Al pausar, actualizar el Project y comentar el issue.
+10. Hacer un commit atómico con Conventional Commits para el ciclo verde.
+11. Al pausar o terminar, actualizar el Project y comentar o cerrar el issue.
 
 Reglas:
 
 - No avanzar a otra historia.
 - No escribir código productivo antes del test rojo.
 - No saltear refactor si el diseño lo pide.
+- No dejar un ciclo verde sin commit atómico, salvo que la persona usuaria pida pausar antes de conservar cambios.
 - Si el diseño se confunde, proponer borrar `src/` y `test/` antes de seguir.
 - No guardar secretos, tokens ni datos privados.

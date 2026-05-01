@@ -1,9 +1,36 @@
 # Núcleo de dominio inicial
 
 > Nota: este documento registra una exploración previa al reinicio TDD. El estado
-> actual del código puede avanzar nuevamente en slices más pequeños.
+> actual del código avanza nuevamente en slices más pequeños.
 
-## Decisión
+## Estado después del reinicio TDD
+
+El primer slice real implementado es la historia #20: crear un usuario humano con
+handle.
+
+La API actual es deliberadamente mínima:
+
+```clojure
+(pi-clojure.domain.user/create-human "andres")
+;; => #:user{:handle "andres"
+;;           :type :user.type/human}
+```
+
+Decisiones actuales:
+
+- Un usuario humano se representa como mapa con `:user/handle` y `:user/type`.
+- El tipo de usuario humano es `:user.type/human`.
+- El test de dominio diseña la API desde el consumidor.
+
+Fuera de alcance por ahora:
+
+- id de usuario;
+- persistencia;
+- validación de handle;
+- sala personal automática;
+- CLI.
+
+## Decisión exploratoria previa
 
 El primer núcleo programado es el caso de uso `send-message` con almacenamiento
 en memoria y tests.

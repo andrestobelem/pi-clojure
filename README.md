@@ -89,7 +89,7 @@ Labels principales:
 
 Historia activa:
 
-- [#20 Como usuario, quiero crear un usuario humano con handle](https://github.com/andrestobelem/pi-clojure/issues/20)
+- [#14 Como usuario, quiero crearme con un handle](https://github.com/andrestobelem/pi-clojure/issues/14)
 
 Procedimiento de trabajo:
 
@@ -114,7 +114,7 @@ con:
 gh project view 2 --owner andrestobelem --format json --jq '.id'
 gh project field-list 2 --owner andrestobelem --format json
 gh project item-list 2 --owner andrestobelem --format json --limit 100 \
-  --jq '.items[] | select(.content.number==20) | {id, status:.status, title:.content.title}'
+  --jq '.items[] | select(.content.number==14) | {id, status:.status, title:.content.title}'
 ```
 
 Mover un item a `Done`:

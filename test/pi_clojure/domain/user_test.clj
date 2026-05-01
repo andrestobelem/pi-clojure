@@ -205,7 +205,16 @@
           room (user/create-shared-room! store "general" "General")]
       (user/join-room! store (:user/id andres) (:room/id room))
       (user/leave-room! store (:user/id andres) (:room/id room))
-      (is (not (user/active-participant? store (:user/id andres) (:room/id room)))))))
+      (is (not (user/active-participant? store (:user/id andres) (:room/id room))))))
+
+  (testing "given a user who left an accessible room, when joining again, then the user participates again"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          room (user/create-shared-room! store "general" "General")]
+      (user/join-room! store (:user/id andres) (:room/id room))
+      (user/leave-room! store (:user/id andres) (:room/id room))
+      (user/join-room! store (:user/id andres) (:room/id room))
+      (is (user/active-participant? store (:user/id andres) (:room/id room))))))
 
 (deftest send-and-read-room-messages
   (testing "given an active participant, when sending Markdown messages, then the room keeps them ordered by sequence"
@@ -223,7 +232,18 @@
                first-message))
         (is (= 2 (:message/sequence second-message)))
         (is (= [first-message second-message]
-               (user/read-room-messages store (:user/id andres) (:room/id room))))))))
+               (user/read-room-messages store (:user/id andres) (:room/id room)))))))
+
+  (testing "given a user who is not an active participant, when reading or sending, then access is denied"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          room (user/create-shared-room! store "general" "General")]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"active participation is required"
+                            (user/read-room-messages store (:user/id andres) (:room/id room))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"active participation is required"
+                            (user/send-message! store (:user/id andres) (:room/id room) "Hola"))))))
 
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"

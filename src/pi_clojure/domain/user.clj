@@ -1,6 +1,7 @@
 (ns pi-clojure.domain.user
   (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [pi-clojure.domain.model :as model]))
 
 (def min-handle-length 3)
 (def max-handle-length 39)
@@ -63,7 +64,9 @@
   (atom #:users{:by-handle {}
         :rooms/by-id {}
         :rooms/personal-by-owner-id {}
-        :participations/active #{}}))
+        :participations/active #{}
+        :messages/by-room-id {}
+        :messages/next-sequence-by-room-id {}}))
 
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
@@ -164,6 +167,40 @@
 (defn leave-room! [store user-id room-id]
   (swap! store update-in [:participations/active] disj [user-id room-id])
   nil)
+
+(defn require-active-participant! [store user-id room-id]
+  (when-not (active-participant? store user-id room-id)
+    (throw (ex-info "active participation is required"
+                    {:user-id user-id
+                     :room-id room-id}))))
+
+(defn next-message-sequence [store room-id]
+  (get-in @store [:messages/next-sequence-by-room-id room-id] 1))
+
+(defn message-id [room-id sequence]
+  (str "message:" room-id ":" sequence))
+
+(defn send-message! [store user-id room-id body-markdown]
+  (require-active-participant! store user-id room-id)
+  (let [sequence (next-message-sequence store room-id)
+        message (model/create-message (message-id room-id sequence)
+                                      room-id
+                                      user-id
+                                      sequence
+                                      body-markdown)]
+    (swap! store
+           (fn [state]
+             (-> state
+                 (update-in [:messages/by-room-id room-id] (fnil conj []) message)
+                 (assoc-in [:messages/next-sequence-by-room-id room-id]
+                           (inc sequence)))))
+    message))
+
+(defn read-room-messages [store user-id room-id]
+  (require-active-participant! store user-id room-id)
+  (->> (get-in @store [:messages/by-room-id room-id])
+       (sort-by :message/sequence)
+       vec))
 
 (defn ensure-personal-room! [store created-user]
   (or (find-personal-room-by-owner store (:user/id created-user))

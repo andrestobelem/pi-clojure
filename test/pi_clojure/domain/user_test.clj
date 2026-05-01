@@ -207,6 +207,24 @@
       (user/leave-room! store (:user/id andres) (:room/id room))
       (is (not (user/active-participant? store (:user/id andres) (:room/id room)))))))
 
+(deftest send-and-read-room-messages
+  (testing "given an active participant, when sending Markdown messages, then the room keeps them ordered by sequence"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          room (user/create-shared-room! store "general" "General")]
+      (user/join-room! store (:user/id andres) (:room/id room))
+      (let [first-message (user/send-message! store (:user/id andres) (:room/id room) "Hola **mundo**")
+            second-message (user/send-message! store (:user/id andres) (:room/id room) "Segundo mensaje")]
+        (is (= #:message{:id "message:general:1"
+                         :room-id "general"
+                         :author-id (:user/id andres)
+                         :sequence 1
+                         :body-markdown "Hola **mundo**"}
+               first-message))
+        (is (= 2 (:message/sequence second-message)))
+        (is (= [first-message second-message]
+               (user/read-room-messages store (:user/id andres) (:room/id room))))))))
+
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"
     (let [store (user/create-store)

@@ -73,9 +73,12 @@
        (sort-by key)
        (mapv val)))
 
+(defn find-room [store room-id]
+  (get-in @store [:rooms/by-id room-id]))
+
 (defn find-personal-room-by-owner [store owner-id]
   (when-let [room-id (get-in @store [:rooms/personal-by-owner-id owner-id])]
-    (get-in @store [:rooms/by-id room-id])))
+    (find-room store room-id)))
 
 (defn list-rooms [store]
   (->> (get-in @store [:rooms/by-id])
@@ -84,6 +87,18 @@
 
 (defn active-participant? [store user-id room-id]
   (contains? (get-in @store [:participations/active]) [user-id room-id]))
+
+(defn existing-user-id? [store user-id]
+  (->> (get-in @store [:users/by-handle])
+       vals
+       (some #(= user-id (:user/id %)))
+       boolean))
+
+(defn accessible-room? [store user-id room-id]
+  (let [room (find-room store room-id)]
+    (and (existing-user-id? store user-id)
+         (or (= :room.type/shared (:room/type room))
+             (= user-id (:room/owner-id room))))))
 
 (defn validate-handle! [handle]
   (when-not (required-handle? handle)
@@ -110,6 +125,18 @@
 
 (defn user-id-for-handle [handle]
   (str "user:" handle))
+
+(defn room-slug-for-title [title]
+  (-> title
+      str/lower-case
+      (str/replace #"\s+" "-")))
+
+(defn create-shared-room! [store title]
+  (let [room #:room{:id (str "room:shared:" (room-slug-for-title title))
+                    :type :room.type/shared
+                    :title title}]
+    (swap! store assoc-in [:rooms/by-id (:room/id room)] room)
+    room))
 
 (defn personal-room-id-for-user [created-user]
   (str "room:" (:user/id created-user)))

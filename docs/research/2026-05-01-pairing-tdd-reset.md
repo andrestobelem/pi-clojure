@@ -15,6 +15,7 @@ borrar `src/` y `test/` si eso ayuda a recuperar claridad de diseño.
 - Trabajamos como pair programming: la persona usuaria decide intención y
   prioridad; el agente propone el siguiente micro-paso y ejecuta cambios.
 - Trabajamos de a una sola historia activa en GitHub Projects.
+- Podemos crear una branch corta por story desde `main`, con formato `story/<issue-number>-<slug>`.
 - La historia se mueve a `In Progress` al comenzar y vuelve a `Todo` si pausamos
   antes de escribir o conservar código.
 - Cada cambio de comportamiento empieza con un test rojo visible.
@@ -37,7 +38,19 @@ Formato:
 Como <usuario>, quiero <capacidad>, para <beneficio>.
 ```
 
-### 2. Red: escribir primero el test
+### 2. Crear o verificar branch corta
+
+Si vamos a usar branch por story, crearla desde `main` antes de escribir código:
+
+```sh
+git switch main
+git pull --ff-only
+git switch -c story/<issue-number>-<slug>
+```
+
+La branch debe vivir poco y volver rápido a `main`.
+
+### 3. Red: escribir primero el test
 
 Escribir un test pequeño desde el punto de vista del consumidor del código. El
 test debe expresar el comportamiento deseado y fallar por una razón clara.
@@ -52,14 +65,14 @@ En esta fase diseñamos la API desde el test:
 
 No escribir código productivo antes de ver el test fallar.
 
-### 3. Green: implementar lo mínimo
+### 4. Green: implementar lo mínimo
 
 Escribir la implementación más simple que haga pasar el test.
 
 No buscar todavía generalidad, arquitectura perfecta ni features futuras. El
 objetivo es obtener feedback rápido.
 
-### 4. Refactor: mejorar diseño con la suite verde
+### 5. Refactor: mejorar diseño con la suite verde
 
 Con los tests en verde, mejorar el diseño sin cambiar comportamiento observable.
 
@@ -75,14 +88,29 @@ Buscar:
 La fase de refactor no es opcional. Según Dave Farley, TDD sin refactor puede
 producir código cubierto por tests pero mal diseñado.
 
-### 5. Commit: guardar el ciclo verde
+### 6. Commit: guardar el ciclo verde
 
 Cuando el test pasa y la fase de refactor queda evaluada, correr los checks y
 hacer un commit atómico con Conventional Commits.
 
 No mezclar en ese commit cambios de otras historias o tareas no relacionadas.
 
-### 6. Actualizar el proyecto
+### 7. Integrar a main
+
+Al terminar la story, integrar rápido a `main` y borrar la branch de story.
+
+Ejemplo local:
+
+```sh
+git switch main
+git merge --ff-only story/<issue-number>-<slug>
+git branch -d story/<issue-number>-<slug>
+```
+
+Si la integración no puede ser fast-forward, revisar por qué antes de mezclar
+cambios.
+
+### 8. Actualizar el proyecto
 
 Después de cada ciclo:
 

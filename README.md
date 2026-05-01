@@ -53,9 +53,24 @@ historia activa.
 Buenas prácticas:
 
 - Integrar cambios pequeños en `main` frecuentemente.
+- Para cada story, se puede crear una branch corta desde `main`:
+
+  ```sh
+  git switch main
+  git pull --ff-only
+  git switch -c story/<issue-number>-<slug>
+  ```
+
+- Ejemplo:
+
+  ```sh
+  git switch -c story/21-personal-room
+  ```
+
 - Evitar ramas de larga vida.
 - Si usamos ramas, que sean cortas y vuelvan rápido a `main`.
 - Mantener `main` en estado consistente.
+- Al terminar una story, integrar rápido a `main` y borrar la branch.
 - Usar feature flags o branch by abstraction para cambios grandes.
 
 ## Gestión de proyecto

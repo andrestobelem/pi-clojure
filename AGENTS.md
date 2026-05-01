@@ -30,11 +30,13 @@ implementación, preservando documentación, decisiones, backlog y tooling.
 ## Git
 
 - `main` es la rama principal de integración.
+- Se puede crear una branch corta por story desde `main`, con formato `story/<issue-number>-<slug>`.
 - Evitar ramas de larga vida.
 - Integrar cambios pequeños y frecuentes.
 - Hacer commits pequeños, atómicos y con una intención clara.
 - Después de cada ciclo TDD con tests verdes, commitear el cambio atómico.
 - Usar Conventional Commits.
+- Al terminar una story, integrar rápido a `main` y borrar la branch de la story.
 
 ## Documentación externa
 

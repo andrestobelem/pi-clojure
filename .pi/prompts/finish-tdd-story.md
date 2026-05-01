@@ -36,8 +36,16 @@ Pasos:
    git log --oneline -1
    ```
 
-6. Mover el item del GitHub Project a `Done`.
-7. Cerrar el issue con un comentario que incluya:
+6. Si estamos en una branch de story, integrarla rápido a `main` y borrar la branch:
+
+   ```sh
+   git switch main
+   git merge --ff-only story/<issue-number>-<slug>
+   git branch -d story/<issue-number>-<slug>
+   ```
+
+7. Mover el item del GitHub Project a `Done`.
+8. Cerrar el issue con un comentario que incluya:
    - commit hash;
    - checks corridos;
    - cualquier decisión o fuera de alcance relevante.
@@ -47,4 +55,5 @@ Reglas:
 - No cerrar la story si quedaron checks fallando.
 - No mezclar cambios de otras historias en el commit de cierre.
 - No cerrar la story si la fase de refactor quedó pendiente.
+- No dejar branches de story vivas después de integrar a `main`.
 - No guardar secretos, tokens ni datos privados en comentarios ni commits.

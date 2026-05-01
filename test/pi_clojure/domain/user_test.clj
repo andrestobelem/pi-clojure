@@ -3,96 +3,113 @@
             [clojure.test :refer [deftest is testing]]
             [pi-clojure.domain.user :as user]))
 
-(deftest create-human-user-with-handle
-  (testing "creates a human user with the provided handle"
+(deftest create-user-with-handle-and-type
+  (testing "given a handle and human type, when creating a user, then it returns a human user"
     (is (= #:user{:handle "andres"
                   :type :user.type/human}
-           (user/create-human "andres")))))
+           (user/create-user "andres" :user.type/human))))
+
+  (testing "given a handle and agent type, when creating a user, then it returns an agent user"
+    (is (= #:user{:handle "agent"
+                  :type :user.type/agent}
+           (user/create-user "agent" :user.type/agent)))))
 
 (deftest user-specs
-  (testing "validates canonical handles"
+  (testing "given canonical and non-canonical handles, when validating handle spec, then only canonical handles are valid"
     (is (s/valid? :user/handle "andres_42-test"))
     (is (not (s/valid? :user/handle "Andres")))
     (is (not (s/valid? :user/handle " andres")))
     (is (not (s/valid? :user/handle "andres."))))
 
-  (testing "validates human users"
+  (testing "given a human user, when validating user spec, then it is valid"
     (is (s/valid? :user/user
                   #:user{:handle "andres"
-                         :type :user.type/human}))))
+                         :type :user.type/human})))
 
-(deftest create-human-user-in-store
-  (testing "persists a human user with a unique handle"
+  (testing "given an agent user, when validating user spec, then it is valid"
+    (is (s/valid? :user/user
+                  #:user{:handle "agent"
+                         :type :user.type/agent}))))
+
+(deftest create-user-in-store
+  (testing "given an empty store, when creating a user, then it persists the user by handle"
     (let [store (user/create-store)
-          created-user (user/create-human! store "andres")]
+          created-user (user/create-user! store "andres" :user.type/human)]
       (is (= #:user{:handle "andres"
                     :type :user.type/human}
              created-user))
       (is (= created-user
              (user/find-by-handle store "andres")))))
 
-  (testing "rejects duplicated handles"
+  (testing "given an empty store, when creating an agent user, then it preserves the agent type"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "agent" :user.type/agent)]
+      (is (= #:user{:handle "agent"
+                    :type :user.type/agent}
+             created-user))))
+
+  (testing "given an existing handle, when creating another user with the same handle, then it rejects the duplicate"
     (let [store (user/create-store)]
-      (user/create-human! store "andres")
+      (user/create-user! store "andres" :user.type/human)
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle already exists"
-                            (user/create-human! store "andres")))))
+                            (user/create-user! store "andres" :user.type/agent)))))
 
-  (testing "rejects handles with surrounding whitespace"
+  (testing "given a handle with surrounding whitespace, when creating a user, then it rejects the handle"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle cannot have surrounding whitespace"
-                            (user/create-human! store " andres ")))))
+                            (user/create-user! store " andres " :user.type/human)))))
 
-  (testing "rejects handles with uppercase letters"
+  (testing "given a handle with uppercase letters, when creating a user, then it rejects the handle"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle must be lowercase"
-                            (user/create-human! store "Andres")))))
+                            (user/create-user! store "Andres" :user.type/human)))))
 
-  (testing "rejects blank handles"
+  (testing "given a blank handle, when creating a user, then it rejects the handle"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle is required"
-                            (user/create-human! store "")))))
+                            (user/create-user! store "" :user.type/human)))))
 
-  (testing "allows letters numbers hyphens and underscores in handles"
+  (testing "given a handle with allowed characters, when creating a user, then it accepts the handle"
     (let [store (user/create-store)]
       (is (= #:user{:handle "andres_42-test"
                     :type :user.type/human}
-             (user/create-human! store "andres_42-test")))))
+             (user/create-user! store "andres_42-test" :user.type/human)))))
 
-  (testing "rejects unsupported handle characters"
+  (testing "given a handle with unsupported characters, when creating a user, then it rejects the handle"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle has unsupported characters"
-                            (user/create-human! store "andres.test")))))
+                            (user/create-user! store "andres.test" :user.type/human)))))
 
-  (testing "rejects handles shorter than 3 characters"
+  (testing "given a handle shorter than 3 characters, when creating a user, then it rejects the handle"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle is too short"
-                            (user/create-human! store "ab")))))
+                            (user/create-user! store "ab" :user.type/human)))))
 
-  (testing "rejects handles longer than 39 characters"
+  (testing "given a handle longer than 39 characters, when creating a user, then it rejects the handle"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle is too long"
-                            (user/create-human! store "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")))))
+                            (user/create-user! store "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" :user.type/human)))))
 
-  (testing "rejects handles that start or end with separators"
+  (testing "given a handle that starts or ends with a separator, when creating a user, then it rejects the handle"
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle cannot start or end with a separator"
-                            (user/create-human! store "-andres")))
+                            (user/create-user! store "-andres" :user.type/human)))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle cannot start or end with a separator"
-                            (user/create-human! store "andres_"))))))
+                            (user/create-user! store "andres_" :user.type/human))))))
 
 (deftest list-users-in-store
-  (testing "lists created users ordered by handle"
+  (testing "given users created out of order, when listing users, then it returns them ordered by handle"
     (let [store (user/create-store)
-          zoe (user/create-human! store "zoe")
-          andres (user/create-human! store "andres")]
+          zoe (user/create-user! store "zoe" :user.type/human)
+          andres (user/create-user! store "andres" :user.type/human)]
       (is (= [andres zoe]
              (user/list-users store))))))

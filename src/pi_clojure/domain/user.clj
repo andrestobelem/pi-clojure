@@ -14,13 +14,16 @@
        (boolean (re-matches #"[a-z0-9_-]+" handle))
        (not (re-find #"(^[-_]|[-_]$)" handle))))
 
+(def user-types #{:user.type/human
+                  :user.type/agent})
+
 (s/def :user/handle valid-handle?)
-(s/def :user/type #{:user.type/human})
+(s/def :user/type user-types)
 (s/def :user/user (s/keys :req [:user/handle :user/type]))
 
-(defn create-human [handle]
+(defn create-user [handle user-type]
   #:user{:handle handle
-         :type :user.type/human})
+         :type user-type})
 
 (defn create-store []
   (atom #:users{:by-handle {}}))
@@ -51,10 +54,10 @@
     (throw (ex-info "handle cannot start or end with a separator"
                     {:handle handle}))))
 
-(defn create-human! [store handle]
+(defn create-user! [store handle user-type]
   (validate-handle! handle)
-  (let [human-user (create-human handle)]
+  (let [created-user (create-user handle user-type)]
     (when (find-by-handle store handle)
       (throw (ex-info "handle already exists" {:handle handle})))
-    (swap! store assoc-in [:users/by-handle handle] human-user)
-    human-user))
+    (swap! store assoc-in [:users/by-handle handle] created-user)
+    created-user))

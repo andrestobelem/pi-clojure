@@ -2,6 +2,7 @@
 
 ## Índice
 
+- [`2026-05-01-domain-decisions.md`](2026-05-01-domain-decisions.md): decisiones iniciales durables del dominio.
 - [`2026-05-01-github-project-canvas.md`](2026-05-01-github-project-canvas.md): decisión para usar GitHub Project como canvas del MVP.
 - [`2026-05-01-pairing-tdd-reset.md`](2026-05-01-pairing-tdd-reset.md): procedimiento para reiniciar implementación y trabajar en Pair Programming con TDD.
 - [`2026-05-01-parallel-pi-workflow.md`](2026-05-01-parallel-pi-workflow.md): decisión para trabajar con dos pi implementando y un pi refinando backlog.

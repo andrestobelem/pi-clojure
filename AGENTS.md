@@ -20,6 +20,13 @@ Trabajar en ciclos cortos:
 
 Usar los tests como feedback de diseño, no solo como cobertura.
 
+Trabajar de a una user story activa en GitHub Projects. Al iniciar, pausar o
+terminar una historia, actualizar su estado en el proyecto.
+
+No avanzar a otra funcionalidad si quedó pendiente la fase de refactor. Si el
+diseño se vuelve confuso, se puede borrar `src/` y `test/` para reiniciar la
+implementación, preservando documentación, decisiones, backlog y tooling.
+
 ## Git
 
 - `main` es la rama principal de integración.
@@ -43,6 +50,30 @@ npx ctx7 docs <library-id> "<consulta>"
 ```
 
 No mostrar ni commitear `CONTEXT7_API_KEY`.
+
+## Exploración de tecnología e infraestructura
+
+Cuando se evalúe una tecnología nueva de infraestructura, base de datos o
+servicio local:
+
+- Guardar la investigación o decisión en `docs/research/`.
+- Documentar comandos reproducibles en `README.md` cuando sean de uso frecuente.
+- Dejar configuración local no sensible en `.env.example`.
+- Mantener secretos, API keys y credenciales reales fuera de git.
+- Validar Docker Compose con:
+
+```sh
+docker compose config
+```
+
+## Clojure
+
+Después de editar código Clojure, correr:
+
+```sh
+clj-kondo --lint src test
+clojure -M:test
+```
 
 ## Markdown
 

@@ -17,3 +17,6 @@ pom.xml.asc
 .env
 .env.*
 !.env.example
+
+# Local app state
+.pi-chat.edn

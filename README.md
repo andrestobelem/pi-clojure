@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- Ninguna.
+- [#24 Como usuario, quiero entrar, leer, escribir y salir de una sala](https://github.com/andrestobelem/pi-clojure/issues/24)
 
 Procedimiento de trabajo:
 

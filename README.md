@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- [#15 Como usuario, quiero que se cree mi sala personal automáticamente](https://github.com/andrestobelem/pi-clojure/issues/15)
+- Ninguna.
 
 Procedimiento de trabajo:
 

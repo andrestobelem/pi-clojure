@@ -49,7 +49,19 @@
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle is required"
-                            (user/create-human! store ""))))))
+                            (user/create-human! store "")))))
+
+  (testing "allows letters numbers hyphens and underscores in handles"
+    (let [store (user/create-store)]
+      (is (= #:user{:handle "andres_42-test"
+                    :type :user.type/human}
+             (user/create-human! store "andres_42-test")))))
+
+  (testing "rejects unsupported handle characters"
+    (let [store (user/create-store)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle has unsupported characters"
+                            (user/create-human! store "andres.test"))))))
 
 (deftest list-users-in-store
   (testing "lists created users ordered by handle"

@@ -7,6 +7,11 @@
 (def allowed-handle-pattern #"[a-z0-9_-]+")
 (def edge-separator-pattern #"(^[-_]|[-_]$)")
 (def consecutive-separator-pattern #"[-_]{2}")
+(def reserved-handles #{"admin"
+                        "api"
+                        "root"
+                        "support"
+                        "www"})
 
 (defn required-handle? [handle]
   (and (string? handle)
@@ -30,6 +35,9 @@
 (defn without-consecutive-separators? [handle]
   (not (re-find consecutive-separator-pattern handle)))
 
+(defn available-handle-name? [handle]
+  (not (contains? reserved-handles handle)))
+
 (defn valid-handle? [handle]
   (and (required-handle? handle)
        (without-surrounding-whitespace? handle)
@@ -37,7 +45,8 @@
        (handle-length-valid? handle)
        (supported-handle-characters? handle)
        (without-edge-separators? handle)
-       (without-consecutive-separators? handle)))
+       (without-consecutive-separators? handle)
+       (available-handle-name? handle)))
 
 (def user-types #{:user.type/human
                   :user.type/agent})
@@ -80,7 +89,9 @@
                     {:handle handle})))
   (when-not (without-consecutive-separators? handle)
     (throw (ex-info "handle cannot contain consecutive separators"
-                    {:handle handle}))))
+                    {:handle handle})))
+  (when-not (available-handle-name? handle)
+    (throw (ex-info "handle is reserved" {:handle handle}))))
 
 (defn create-user! [store handle user-type]
   (validate-handle! handle)

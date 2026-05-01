@@ -119,7 +119,16 @@
                             (user/create-user! store "andres-_test" :user.type/human)))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle cannot contain consecutive separators"
-                            (user/create-user! store "andres_-test" :user.type/human))))))
+                            (user/create-user! store "andres_-test" :user.type/human)))))
+
+  (testing "given a reserved handle, when creating a user, then it rejects the handle"
+    (let [store (user/create-store)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle is reserved"
+                            (user/create-user! store "admin" :user.type/human)))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle is reserved"
+                            (user/create-user! store "support" :user.type/human))))))
 
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"

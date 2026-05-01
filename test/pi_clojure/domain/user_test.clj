@@ -25,25 +25,17 @@
                             #"handle already exists"
                             (user/create-human! store "andres")))))
 
-  (testing "normalizes handles before enforcing uniqueness"
-    (let [store (user/create-store)
-          created-user (user/create-human! store " andres ")]
-      (is (= #:user{:handle "andres"
-                    :type :user.type/human}
-             created-user))
+  (testing "rejects handles with surrounding whitespace"
+    (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"handle already exists"
-                            (user/create-human! store "andres")))))
+                            #"handle cannot have surrounding whitespace"
+                            (user/create-human! store " andres ")))))
 
-  (testing "enforces handle uniqueness case-insensitively"
-    (let [store (user/create-store)
-          created-user (user/create-human! store "Andres")]
-      (is (= #:user{:handle "andres"
-                    :type :user.type/human}
-             created-user))
+  (testing "rejects handles with uppercase letters"
+    (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"handle already exists"
-                            (user/create-human! store "andres")))))
+                            #"handle must be lowercase"
+                            (user/create-human! store "Andres")))))
 
   (testing "rejects blank handles"
     (let [store (user/create-store)]

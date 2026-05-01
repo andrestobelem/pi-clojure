@@ -4,9 +4,6 @@
 (def min-handle-length 3)
 (def max-handle-length 39)
 
-(defn normalize-handle [handle]
-  (some-> handle str/trim str/lower-case))
-
 (defn create-human [handle]
   #:user{:handle handle
          :type :user.type/human})
@@ -25,6 +22,11 @@
 (defn validate-handle! [handle]
   (when (str/blank? handle)
     (throw (ex-info "handle is required" {:handle handle})))
+  (when (not= handle (str/trim handle))
+    (throw (ex-info "handle cannot have surrounding whitespace"
+                    {:handle handle})))
+  (when (not= handle (str/lower-case handle))
+    (throw (ex-info "handle must be lowercase" {:handle handle})))
   (when (< (count handle) min-handle-length)
     (throw (ex-info "handle is too short" {:handle handle})))
   (when (> (count handle) max-handle-length)
@@ -36,10 +38,9 @@
                     {:handle handle}))))
 
 (defn create-human! [store handle]
-  (let [normalized-handle (normalize-handle handle)
-        human-user (create-human normalized-handle)]
-    (validate-handle! normalized-handle)
-    (when (find-by-handle store normalized-handle)
-      (throw (ex-info "handle already exists" {:handle normalized-handle})))
-    (swap! store assoc-in [:users/by-handle normalized-handle] human-user)
+  (validate-handle! handle)
+  (let [human-user (create-human handle)]
+    (when (find-by-handle store handle)
+      (throw (ex-info "handle already exists" {:handle handle})))
+    (swap! store assoc-in [:users/by-handle handle] human-user)
     human-user))

@@ -99,6 +99,66 @@ gh project view 2 --owner andrestobelem --format json --jq '.id'
 gh project field-list 2 --owner andrestobelem --format json
 ```
 
+## Dolt
+
+Este repo incluye una prueba local de Dolt para versionar datos de salas de chat
+Markdown.
+
+Levantar Dolt:
+
+```sh
+docker compose up -d dolt
+```
+
+Validar la configuración:
+
+```sh
+docker compose config
+```
+
+Aplicar el esquema inicial:
+
+```sh
+docker compose exec -T dolt \
+  dolt --data-dir /var/lib/dolt/chat_markdown sql < db/dolt/001_chat_markdown.sql
+```
+
+Ver estado del servicio:
+
+```sh
+docker compose ps
+docker compose logs --tail=80 dolt
+```
+
+Ver estado y log de Dolt:
+
+```sh
+docker compose exec dolt sh -lc \
+  'cd /var/lib/dolt/chat_markdown && dolt status'
+
+docker compose exec dolt sh -lc \
+  'cd /var/lib/dolt/chat_markdown && dolt log'
+```
+
+Conectarse con un cliente MySQL compatible:
+
+```sh
+mysql \
+  --host 127.0.0.1 \
+  --port 3307 \
+  --user chat \
+  --password=chatpass \
+  chat_markdown
+```
+
+Detener el servicio:
+
+```sh
+docker compose down
+```
+
+Más detalles: [`docs/research/2026-05-01-dolt.md`](docs/research/2026-05-01-dolt.md).
+
 ## Commits
 
 Este repo usa [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).

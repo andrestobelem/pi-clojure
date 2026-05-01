@@ -31,6 +31,10 @@
              (run! state-file "create-room" "general")))
       (is (= "andres entró a general\n"
              (run! state-file "join" "general" "andres")))
+      (is (= (str "[{:user-id \"user:andres\", "
+                  ":handle \"andres\", "
+                  ":user-type :user.type/human}]\n")
+             (run! state-file "participants" "general")))
       (is (= "Mensaje enviado a general por andres\n"
              (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
       (is (= "Mensaje enviado a general por andres\n"

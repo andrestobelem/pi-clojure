@@ -325,6 +325,34 @@
       (is (= []
              (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
 
+(deftest list-active-room-participants
+  (testing "given a shared room with active and inactive users, when listing active participants, then it only exposes active participant summaries"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          zoe (user/create-user! store "zoe" :user.type/human)
+          bot (user/create-user! store "bot" :user.type/agent)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id zoe) (:room/id shared-room))
+      (user/join-room! store (:user/id andres) (:room/id shared-room))
+      (user/join-room! store (:user/id bot) (:room/id shared-room))
+      (user/leave-room! store (:user/id zoe) (:room/id shared-room))
+      (is (= [{:user-id "user:andres"
+               :handle "andres"
+               :user-type :user.type/human}
+              {:user-id "user:bot"
+               :handle "bot"
+               :user-type :user.type/agent}]
+             (user/list-active-participants store (:room/id shared-room))))))
+
+  (testing "given a personal room, when listing active participants, then the owner appears as an active participant"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          personal-room (user/find-personal-room-by-owner store (:user/id andres))]
+      (is (= [{:user-id "user:andres"
+               :handle "andres"
+               :user-type :user.type/human}]
+             (user/list-active-participants store (:room/id personal-room)))))))
+
 (deftest export-room-as-markdown
   (testing "given out-of-order messages, when anyone exports a room, then it includes the title and ordered original Markdown"
     (let [store (user/create-store)

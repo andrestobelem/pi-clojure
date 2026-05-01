@@ -85,6 +85,11 @@
           room (require-room store room-name)]
       (print (format-conversation store room (chat/read-room store (:user/id user) (:room/id room)))))
 
+    "participants"
+    (let [[room-name] args
+          room (require-room store room-name)]
+      (prn (chat/list-active-participants store (:room/id room))))
+
     "export"
     (let [[room-name handle] args
           _user (require-user store handle)

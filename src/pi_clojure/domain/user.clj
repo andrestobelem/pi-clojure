@@ -105,6 +105,19 @@
 (defn active-participation-count [store user-id room-id]
   (if (active-participant? store user-id room-id) 1 0))
 
+(defn participant-summary [created-user]
+  {:user-id (:user/id created-user)
+   :handle (:user/handle created-user)
+   :user-type (:user/type created-user)})
+
+(defn list-active-participants [store room-id]
+  (->> (get-in @store [:participations/active])
+       (keep (fn [[user-id active-room-id]]
+               (when (= room-id active-room-id)
+                 (find-by-id store user-id))))
+       (sort-by :user/handle)
+       (mapv participant-summary)))
+
 (defn existing-user-id? [store user-id]
   (boolean (find-by-id store user-id)))
 

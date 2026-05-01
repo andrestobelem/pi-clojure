@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- [#8 Como usuario, quiero enviar mensajes Markdown a una sala](https://github.com/andrestobelem/pi-clojure/issues/8)
+- Ninguna.
 
 Procedimiento de trabajo:
 

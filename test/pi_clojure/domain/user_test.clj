@@ -184,6 +184,30 @@
       (is (= [shared-room]
              (user/list-rooms store))))))
 
+(deftest list-accessible-rooms
+  (testing "given shared rooms and user rooms, when listing rooms for a user, then it includes accessible rooms with active participation"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          zoe (user/create-user! store "zoe" :user.type/human)
+          general-room (user/create-shared-room! store "General")
+          random-room (user/create-shared-room! store "Random")]
+      (user/join-room! store (:user/id andres) (:room/id general-room))
+      (is (= [#:room{:id (:room/id general-room)
+                     :type :room.type/shared
+                     :title "General"
+                     :active? true}
+              #:room{:id (:room/id random-room)
+                     :type :room.type/shared
+                     :title "Random"
+                     :active? false}
+              #:room{:id "room:user:andres"
+                     :type :room.type/user
+                     :title "andres"
+                     :active? true}]
+             (user/list-accessible-rooms store (:user/id andres))))
+      (is (not-any? #(= (str "room:" (:user/id zoe)) (:room/id %))
+                    (user/list-accessible-rooms store (:user/id andres)))))))
+
 (deftest participate-in-room
   (testing "given an accessible shared room, when a user joins, then the user becomes an active participant"
     (let [store (user/create-store)

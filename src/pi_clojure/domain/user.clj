@@ -94,6 +94,12 @@
 (defn active-participant? [store user-id room-id]
   (contains? (get-in @store [:participations/active]) [user-id room-id]))
 
+(defn room-list-item [store user-id room]
+  #:room{:id (:room/id room)
+         :type (:room/type room)
+         :title (:room/title room)
+         :active? (active-participant? store user-id (:room/id room))})
+
 (defn active-participation-count [store user-id room-id]
   (if (active-participant? store user-id room-id) 1 0))
 
@@ -105,6 +111,11 @@
     (and (existing-user-id? store user-id)
          (or (= :room.type/shared (:room/type room))
              (= user-id (:room/owner-id room))))))
+
+(defn list-accessible-rooms [store user-id]
+  (->> (list-rooms store)
+       (filter #(accessible-room? store user-id (:room/id %)))
+       (mapv #(room-list-item store user-id %))))
 
 (defn validate-handle! [handle]
   (when-not (required-handle? handle)

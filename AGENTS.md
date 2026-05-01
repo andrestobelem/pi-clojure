@@ -23,6 +23,15 @@ Usar los tests como feedback de diseño, no solo como cobertura.
 Trabajar de a una user story activa en GitHub Projects. Al iniciar, pausar o
 terminar una historia, actualizar su estado en el proyecto.
 
+Al refinar backlog o stories, mantener actualizado el GitHub Project:
+
+- usar `Status` para estado operativo (`Todo`, `In Progress`, `Done`);
+- usar `Foco` para ordenar trabajo (`Ahora`, `Siguiente`, `Después`, `Pausado`);
+- usar `Canvas` para ubicar la historia en el mapa del MVP;
+- mantener como máximo 1-2 historias en `In Progress`;
+- retirar del board issues duplicados, cerrados irrelevantes o tareas técnicas
+  que ya estén absorbidas por una story de usuario.
+
 No avanzar a otra funcionalidad si quedó pendiente la fase de refactor. Si el
 diseño se vuelve confuso, se puede borrar `src/` y `test/` para reiniciar la
 implementación, preservando documentación, decisiones, backlog y tooling.

@@ -113,6 +113,23 @@ gh project item-list 2 --owner andrestobelem --format json --limit 20 \
   --jq '.items[] | "#\(.content.number) \(.status) \(.content.title)"'
 ```
 
+Ver el board como canvas del MVP:
+
+```sh
+gh project item-list 2 --owner andrestobelem --format json --limit 100 \
+  --jq '.items[] | "#\(.content.number) [\(.canvas // "")][\(.foco // "")] \(.content.title)"'
+```
+
+Campos usados para ordenar el board:
+
+- `Status`: estado operativo (`Todo`, `In Progress`, `Done`).
+- `Foco`: prioridad de ejecución (`Ahora`, `Siguiente`, `Después`, `Pausado`).
+- `Canvas`: mapa conceptual del MVP (`Hecho`, `Fundación`, `Salas`,
+  `Participación`, `Mensajes`, `Documento`, `Producto`).
+
+La vista recomendada en GitHub Projects es un board agrupado por `Canvas`, con
+`Foco` visible como campo auxiliar.
+
 Mover una historia a `Todo`, `In Progress` o `Done` requiere el id del proyecto,
 el id del item, el campo `Status` y el option id correspondiente. Consultarlos
 con:

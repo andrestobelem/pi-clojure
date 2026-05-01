@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- [#23 Como mantenedor, quiero diseñar la tabla de usuarios](https://github.com/andrestobelem/pi-clojure/issues/23)
+- Ninguna.
 
 Procedimiento de trabajo:
 

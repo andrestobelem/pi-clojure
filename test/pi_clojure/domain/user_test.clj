@@ -159,6 +159,28 @@
       (is (= [personal-room]
              (user/list-rooms store))))))
 
+(deftest create-shared-room
+  (testing "given a title, when creating a shared room, then it persists a shared room"
+    (let [store (user/create-store)
+          room (user/create-shared-room! store "general" "General")]
+      (is (= #:room{:id "general"
+                    :type :room.type/shared
+                    :title "General"
+                    :visibility :room.visibility/shared}
+             room))
+      (is (= room
+             (user/find-room-by-id store "general")))))
+
+  (testing "given existing users, when creating a shared room, then it is accessible to them"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          zoe (user/create-user! store "zoe" :user.type/human)
+          room (user/create-shared-room! store "general" "General")]
+      (is (some #{room}
+                (user/list-accessible-rooms store (:user/id andres))))
+      (is (some #{room}
+                (user/list-accessible-rooms store (:user/id zoe)))))))
+
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"
     (let [store (user/create-store)

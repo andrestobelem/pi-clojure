@@ -80,6 +80,57 @@ Buenas prácticas:
 - Al terminar una story, integrar rápido a `main` y borrar la branch.
 - Usar feature flags o branch by abstraction para cambios grandes.
 
+### Trabajo paralelo con múltiples pi
+
+Para paralelizar trabajo, usar worktrees separados: uno por instancia de pi y
+por branch activa.
+
+Crear tres worktrees desde el repo principal:
+
+```sh
+cd /Users/andrestobelem/ws/at/pi-clojure
+
+git worktree add ../pi-clojure-a main
+git worktree add ../pi-clojure-b main
+git worktree add ../pi-clojure-review main
+```
+
+Abrir una sesión pi por worktree:
+
+```sh
+cd /Users/andrestobelem/ws/at/pi-clojure-a
+pi
+```
+
+```sh
+cd /Users/andrestobelem/ws/at/pi-clojure-b
+pi
+```
+
+```sh
+cd /Users/andrestobelem/ws/at/pi-clojure-review
+pi
+```
+
+Roles recomendados:
+
+- `pi-clojure-a`: implementa una story en una branch propia.
+- `pi-clojure-b`: implementa otra story independiente en otra branch.
+- `pi-clojure-review`: revisa/refina backlog, issues y Project; no toca código
+  de las stories activas salvo que cree su propia branch.
+
+Reglas de coordinación:
+
+- Una story activa por worktree/pi.
+- Máximo dos streams de implementación en paralelo.
+- Evitar que dos pis modifiquen intensivamente los mismos archivos.
+- Integrar a `main` con frecuencia usando `git pull --ff-only` y
+  `git merge --ff-only`.
+- Antes de iniciar o cerrar una story, confirmar `git status --short --branch`.
+- Si aparece conflicto o cambio ajeno, detenerse y coordinar antes de seguir.
+
+Más detalles: [`docs/research/2026-05-01-parallel-pi-workflow.md`](docs/research/2026-05-01-parallel-pi-workflow.md).
+
 ## Gestión de proyecto
 
 Usamos GitHub Issues para tareas concretas y milestones para agrupar objetivos.
@@ -96,7 +147,7 @@ Labels principales:
 
 Historia activa:
 
-- Ninguna.
+- [#29 Documentar trabajo paralelo con múltiples pi](https://github.com/andrestobelem/pi-clojure/issues/29)
 
 Procedimiento de trabajo:
 

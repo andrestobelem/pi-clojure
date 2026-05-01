@@ -20,13 +20,22 @@ Trabajar en ciclos cortos:
 
 Usar los tests como feedback de diseño, no solo como cobertura.
 
-Trabajar de a una user story activa en GitHub Projects. Al iniciar, pausar o
-terminar una historia, actualizar su estado en el proyecto.
+Trabajar de a una user story activa por worktree/pi en GitHub Projects. Al
+iniciar, pausar o terminar una historia, actualizar su estado en el proyecto.
+
+Se puede paralelizar con múltiples instancias de pi solo si cada una usa un
+git worktree separado y una branch distinta. Mantener como máximo dos streams de
+implementación en paralelo y un stream adicional de revisión/refinamiento de
+backlog.
 
 Antes de iniciar una historia o cambiar de contexto, revisar
 `git status --short --branch`. No avanzar si hay conflictos (`UU`) o cambios
 pendientes sin clasificar; primero resolverlos, commitearlos, stashearlos o
 crear una tarea explícita.
+
+En trabajo paralelo, evitar que dos pis editen intensivamente los mismos
+archivos. El pi de revisión no debe modificar código de una story activa salvo
+que cree su propia branch y coordine el cambio.
 
 Al refinar backlog o stories, mantener actualizado el GitHub Project:
 

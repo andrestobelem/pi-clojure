@@ -23,4 +23,10 @@
       (user/create-human! store "andres")
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle already exists"
-                            (user/create-human! store "andres"))))))
+                            (user/create-human! store "andres")))))
+
+  (testing "rejects blank handles"
+    (let [store (user/create-store)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle is required"
+                            (user/create-human! store ""))))))

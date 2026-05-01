@@ -23,6 +23,11 @@ Usar los tests como feedback de diseño, no solo como cobertura.
 Trabajar de a una user story activa en GitHub Projects. Al iniciar, pausar o
 terminar una historia, actualizar su estado en el proyecto.
 
+Antes de iniciar una historia o cambiar de contexto, revisar
+`git status --short --branch`. No avanzar si hay conflictos (`UU`) o cambios
+pendientes sin clasificar; primero resolverlos, commitearlos, stashearlos o
+crear una tarea explícita.
+
 Al refinar backlog o stories, mantener actualizado el GitHub Project:
 
 - usar `Status` para estado operativo (`Todo`, `In Progress`, `Done`);
@@ -31,6 +36,10 @@ Al refinar backlog o stories, mantener actualizado el GitHub Project:
 - mantener como máximo 1-2 historias en `In Progress`;
 - retirar del board issues duplicados, cerrados irrelevantes o tareas técnicas
   que ya estén absorbidas por una story de usuario.
+
+Si una story ya quedó parcialmente cubierta por otra, no cerrarla sin revisión:
+refinarla a una verificación explícita y acotada si aporta señal, o cerrarla /
+absorberla si es duplicada.
 
 No avanzar a otra funcionalidad si quedó pendiente la fase de refactor. Si el
 diseño se vuelve confuso, se puede borrar `src/` y `test/` para reiniciar la
@@ -46,7 +55,9 @@ implementación, preservando documentación, decisiones, backlog y tooling.
 - Hacer commits pequeños, atómicos y con una intención clara.
 - Después de cada ciclo TDD con tests verdes, commitear el cambio atómico.
 - Usar Conventional Commits.
-- Al terminar una story, integrar rápido a `main` y borrar la branch de la story.
+- Al terminar una story, integrar rápido a `main`, pushear `main`, borrar la
+  branch de la story local y remota, cerrar el issue con checks y dejar el
+  working tree limpio.
 
 ## Documentación externa
 

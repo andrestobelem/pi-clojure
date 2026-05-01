@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- Ninguna.
+- [#28 Persistir aprendizajes de refinamiento y cierre de stories](https://github.com/andrestobelem/pi-clojure/issues/28)
 
 Procedimiento de trabajo:
 
@@ -111,6 +111,14 @@ Ver items activos:
 ```sh
 gh project item-list 2 --owner andrestobelem --format json --limit 20 \
   --jq '.items[] | "#\(.content.number) \(.status) \(.content.title)"'
+```
+
+Si el Project API está limitado o falla por rate limit, listar issues abiertos
+como fallback:
+
+```sh
+gh issue list --state open --json number,title,labels \
+  --jq '.[] | {number,title,labels:[.labels[].name]}'
 ```
 
 Ver el board como canvas del MVP:
@@ -155,6 +163,28 @@ Cerrar el issue con comentario de cierre:
 
 ```sh
 gh issue close 20 --comment "Implementado en <commit-hash>.\n\nChecks:\n- clj-kondo --lint src test\n- clojure -M:test"
+```
+
+Cierre completo de una story:
+
+```sh
+git status --short --branch
+clj-kondo --lint src test
+clojure -M:test
+npx markdownlint-cli2 '**/*.md' '#node_modules'
+git push
+git switch main
+git pull --ff-only
+git merge --ff-only story/<issue-number>-<slug>
+git push origin main
+git branch -d story/<issue-number>-<slug>
+git push origin --delete story/<issue-number>-<slug>
+```
+
+Antes de iniciar otra historia, confirmar que `main` quedó limpio:
+
+```sh
+git status --short --branch
 ```
 
 ## Dolt

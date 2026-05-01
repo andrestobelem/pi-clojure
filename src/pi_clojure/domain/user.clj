@@ -73,6 +73,10 @@
        (sort-by key)
        (mapv val)))
 
+(defn find-user-by-id [store user-id]
+  (some #(when (= user-id (:user/id %)) %)
+        (list-users store)))
+
 (defn find-room-by-id [store room-id]
   (get-in @store [:rooms/by-id room-id]))
 
@@ -87,6 +91,11 @@
 
 (defn active-participant? [store user-id room-id]
   (contains? (get-in @store [:participations/active]) [user-id room-id]))
+
+(defn list-active-participations [store]
+  (->> (get-in @store [:participations/active])
+       sort
+       vec))
 
 (defn shared-room? [room]
   (= :room.type/shared (:room/type room)))
@@ -139,6 +148,22 @@
                     :visibility :room.visibility/shared}]
     (swap! store assoc-in [:rooms/by-id room-id] room)
     room))
+
+(defn join-room! [store user-id room-id]
+  (let [room (find-room-by-id store room-id)]
+    (when-not (find-user-by-id store user-id)
+      (throw (ex-info "user does not exist" {:user-id user-id})))
+    (when-not room
+      (throw (ex-info "room does not exist" {:room-id room-id})))
+    (when-not (accessible-room? user-id room)
+      (throw (ex-info "room is not accessible" {:user-id user-id
+                                                 :room-id room-id})))
+    (swap! store update-in [:participations/active] conj [user-id room-id])
+    (find-room-by-id store room-id)))
+
+(defn leave-room! [store user-id room-id]
+  (swap! store update-in [:participations/active] disj [user-id room-id])
+  nil)
 
 (defn ensure-personal-room! [store created-user]
   (or (find-personal-room-by-owner store (:user/id created-user))

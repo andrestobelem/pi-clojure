@@ -181,6 +181,32 @@
       (is (some #{room}
                 (user/list-accessible-rooms store (:user/id zoe)))))))
 
+(deftest join-and-leave-room
+  (testing "given an accessible shared room, when a user joins it, then the user becomes an active participant"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          room (user/create-shared-room! store "general" "General")]
+      (user/join-room! store (:user/id andres) (:room/id room))
+      (is (user/active-participant? store (:user/id andres) (:room/id room)))))
+
+  (testing "given an active participant, when joining again, then participation is not duplicated"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          room (user/create-shared-room! store "general" "General")]
+      (user/join-room! store (:user/id andres) (:room/id room))
+      (user/join-room! store (:user/id andres) (:room/id room))
+      (is (= [[(:user/id andres) (:room/id room)]
+              [(:user/id andres) "room:user:andres"]]
+             (user/list-active-participations store)))))
+
+  (testing "given an active participant, when leaving the room, then the user stops participating"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          room (user/create-shared-room! store "general" "General")]
+      (user/join-room! store (:user/id andres) (:room/id room))
+      (user/leave-room! store (:user/id andres) (:room/id room))
+      (is (not (user/active-participant? store (:user/id andres) (:room/id room)))))))
+
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"
     (let [store (user/create-store)

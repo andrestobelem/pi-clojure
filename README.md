@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- [#14 Como usuario, quiero crearme con un handle](https://github.com/andrestobelem/pi-clojure/issues/14)
+- [#22 Como usuario, quiero que no se creen usuarios con handles inválidos](https://github.com/andrestobelem/pi-clojure/issues/22)
 
 Procedimiento de trabajo:
 
@@ -121,7 +121,7 @@ con:
 gh project view 2 --owner andrestobelem --format json --jq '.id'
 gh project field-list 2 --owner andrestobelem --format json
 gh project item-list 2 --owner andrestobelem --format json --limit 100 \
-  --jq '.items[] | select(.content.number==14) | {id, status:.status, title:.content.title}'
+  --jq '.items[] | select(.content.number==22) | {id, status:.status, title:.content.title}'
 ```
 
 Mover un item a `Done`:

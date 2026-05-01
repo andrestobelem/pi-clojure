@@ -96,7 +96,7 @@ Labels principales:
 
 Historia activa:
 
-- [#28 Persistir aprendizajes de refinamiento y cierre de stories](https://github.com/andrestobelem/pi-clojure/issues/28)
+- Ninguna.
 
 Procedimiento de trabajo:
 

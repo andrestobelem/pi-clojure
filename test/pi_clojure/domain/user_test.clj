@@ -225,6 +225,19 @@
                        :body-markdown "Hola **mundo**"}
              (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")))))
 
+  (testing "given an active participant, when sending a message, then a message-created event is recorded"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (let [message (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")]
+        (is (= [#:event{:id "event:message:room:shared:general:1:created"
+                        :type :message/created
+                        :room-id (:room/id shared-room)
+                        :actor-id (:user/id created-user)
+                        :message-id (:message/id message)}]
+               (user/list-message-events store (:room/id shared-room)))))))
+
   (testing "given a user who is not an active participant, when reading or sending, then access is denied"
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)

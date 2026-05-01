@@ -65,7 +65,8 @@
         :rooms/by-id {}
         :rooms/personal-by-owner-id {}
         :participations/active #{}
-        :messages/by-room-id {}}))
+        :messages/by-room-id {}
+        :events/by-room-id {}}))
 
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
@@ -182,6 +183,21 @@
     (swap! store update-in [:messages/by-room-id room-id] (fnil conj []) message)
     message))
 
+(defn message-created-event [message]
+  #:event{:id (str "event:" (:message/id message) ":created")
+          :type :message/created
+          :room-id (:message/room-id message)
+          :actor-id (:message/author-id message)
+          :message-id (:message/id message)})
+
+(defn record-message-created-event! [store message]
+  (let [event (message-created-event message)]
+    (swap! store update-in [:events/by-room-id (:event/room-id event)] (fnil conj []) event)
+    event))
+
+(defn list-message-events [store room-id]
+  (get-in @store [:events/by-room-id room-id] []))
+
 (defn read-room [store user-id room-id]
   (require-active-participant! store user-id room-id)
   (->> (messages-in-room store room-id)
@@ -193,7 +209,13 @@
 
 (defn send-message! [store user-id room-id body-markdown]
   (require-active-participant! store user-id room-id)
-  (add-message! store room-id user-id (next-message-sequence store room-id) body-markdown))
+  (let [message (add-message! store
+                              room-id
+                              user-id
+                              (next-message-sequence store room-id)
+                              body-markdown)]
+    (record-message-created-event! store message)
+    message))
 
 (defn personal-room-id-for-user [created-user]
   (str "room:" (:user/id created-user)))

@@ -2,6 +2,17 @@
 
 pi clojure
 
+## Visión
+
+Queremos construir una aplicación de salas de chat **Markdown-first**, donde las
+conversaciones no sean solo mensajes efímeros sino también documentos vivos,
+versionables y exportables: cada sala permite conversar en tiempo real usando
+Markdown seguro, conservar historial auditable de mensajes y ediciones,
+recuperar y exportar la conversación como documento Markdown, y explorar un
+modelo de persistencia tipo Git —empezando con Dolt— para habilitar diffs,
+commits, snapshots y eventualmente ramas o forks de conversaciones que puedan
+transformarse en conocimiento durable.
+
 ## Desarrollo
 
 Este repo usa **Test Driven Development / Test Driven Design** y
@@ -24,6 +35,17 @@ Buenas prácticas:
 - Usar los tests como feedback de diseño, no solo como cobertura.
 - Preferir ciclos cortos y tests rápidos.
 
+Correr linter y tests:
+
+```sh
+clj-kondo --lint src test
+clojure -M:test
+```
+
+Al inicio de un reinicio TDD puede ser válido que `clojure -M:test` ejecute 0
+tests, siempre que la próxima sesión empiece escribiendo un test rojo para la
+historia activa.
+
 ### Trunk-based development
 
 `main` es la rama principal de integración.
@@ -35,6 +57,47 @@ Buenas prácticas:
 - Si usamos ramas, que sean cortas y vuelvan rápido a `main`.
 - Mantener `main` en estado consistente.
 - Usar feature flags o branch by abstraction para cambios grandes.
+
+## Gestión de proyecto
+
+Usamos GitHub Issues para tareas concretas y milestones para agrupar objetivos.
+Los milestones iniciales son:
+
+- `MVP-0: núcleo del dominio`.
+- `MVP-1: chat Markdown exportable`.
+
+Labels principales:
+
+- `type:*` para tipo de trabajo.
+- `area:*` para área del producto o código.
+- `priority:*` para prioridad relativa.
+
+Historia activa:
+
+- [#20 Como usuario, quiero crear un usuario humano con handle](https://github.com/andrestobelem/pi-clojure/issues/20)
+
+Procedimiento de trabajo:
+
+- [`docs/research/2026-05-01-pairing-tdd-reset.md`](docs/research/2026-05-01-pairing-tdd-reset.md)
+
+Tablero GitHub Projects:
+
+- [`pi-clojure MVP`](https://github.com/users/andrestobelem/projects/2)
+
+Ver items activos:
+
+```sh
+gh project item-list 2 --owner andrestobelem --format json --limit 20 \
+  --jq '.items[] | "#\(.content.number) \(.status) \(.content.title)"'
+```
+
+Mover una historia a `Todo`, `In Progress` o `Done` requiere el id del proyecto,
+el campo `Status` y el option id correspondiente. Consultarlos con:
+
+```sh
+gh project view 2 --owner andrestobelem --format json --jq '.id'
+gh project field-list 2 --owner andrestobelem --format json
+```
 
 ## Commits
 

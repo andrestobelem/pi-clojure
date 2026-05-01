@@ -280,6 +280,25 @@
       (is (= []
              (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
 
+(deftest export-room-as-markdown
+  (testing "given an active participant and out-of-order messages, when exporting a room, then it includes the title and ordered original Markdown"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 2 "Segundo con `código`")
+      (user/add-message! store (:room/id shared-room) (:user/id created-user) 1 "Primero **fuerte**")
+      (is (= "# General\n\n## Mensajes\n\n### Mensaje 1\n\nPrimero **fuerte**\n\n### Mensaje 2\n\nSegundo con `código`\n"
+             (user/export-room-markdown store (:user/id created-user) (:room/id shared-room))))))
+
+  (testing "given a user who is not an active participant, when exporting a room, then access is denied"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"active participation required"
+                            (user/export-room-markdown store (:user/id created-user) (:room/id shared-room)))))))
+
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"
     (let [store (user/create-store)

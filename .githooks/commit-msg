@@ -1,0 +1,40 @@
+#!/usr/bin/env sh
+set -eu
+
+commit_msg_file="$1"
+first_line="$(sed -n '1p' "$commit_msg_file")"
+
+# Allow common auto-generated commit messages.
+case "$first_line" in
+  Merge\ *|Revert\ *|fixup\!*|squash\!*)
+    exit 0
+    ;;
+esac
+
+# Conventional Commits 1.0.0 header:
+# <type>[optional scope][!]: <description>
+# Examples:
+# feat(parser): add reader macro support
+# fix!: remove deprecated API
+if printf '%s' "$first_line" | grep -Eq '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._-]+\))?!?: .+$'; then
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+Invalid commit message.
+
+Use Conventional Commits:
+  <type>[optional scope][!]: <description>
+
+Allowed types:
+  build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test
+
+Examples:
+  feat(parser): support nested expressions
+  fix: handle nil inputs
+  docs!: rewrite public API guide
+
+For breaking changes, add ! before ':' or include a BREAKING CHANGE footer.
+EOF
+
+exit 1

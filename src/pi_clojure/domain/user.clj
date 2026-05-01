@@ -21,6 +21,10 @@
     (throw (ex-info "handle is required" {:handle handle})))
   (let [normalized-handle (-> handle str/trim str/lower-case)
         human-user (create-human normalized-handle)]
+    (when (< (count normalized-handle) 3)
+      (throw (ex-info "handle is too short" {:handle normalized-handle})))
+    (when (> (count normalized-handle) 39)
+      (throw (ex-info "handle is too long" {:handle normalized-handle})))
     (when-not (re-matches #"[a-z0-9_-]+" normalized-handle)
       (throw (ex-info "handle has unsupported characters"
                       {:handle normalized-handle})))

@@ -61,7 +61,19 @@
     (let [store (user/create-store)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"handle has unsupported characters"
-                            (user/create-human! store "andres.test"))))))
+                            (user/create-human! store "andres.test")))))
+
+  (testing "rejects handles shorter than 3 characters"
+    (let [store (user/create-store)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle is too short"
+                            (user/create-human! store "ab")))))
+
+  (testing "rejects handles longer than 39 characters"
+    (let [store (user/create-store)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"handle is too long"
+                            (user/create-human! store "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))))))
 
 (deftest list-users-in-store
   (testing "lists created users ordered by handle"

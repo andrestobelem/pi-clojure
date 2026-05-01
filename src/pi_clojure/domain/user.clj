@@ -19,7 +19,7 @@
 (defn create-human! [store handle]
   (when (str/blank? handle)
     (throw (ex-info "handle is required" {:handle handle})))
-  (let [normalized-handle (str/trim handle)
+  (let [normalized-handle (-> handle str/trim str/lower-case)
         human-user (create-human normalized-handle)]
     (when (find-by-handle store normalized-handle)
       (throw (ex-info "handle already exists" {:handle normalized-handle})))

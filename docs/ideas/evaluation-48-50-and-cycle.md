@@ -30,6 +30,9 @@ de agentes. No se implementó código ni se editaron `src/` o `test/`.
 
 ## Checklist de integración recomendado
 
+Checklist operativo canonicalizado:
+[`../multi-agent-cycle-checklist.md`](../multi-agent-cycle-checklist.md).
+
 ### Antes de implementar cada story
 
 - [ ] Confirmar `git status --short --branch` limpio en el worktree de la story.

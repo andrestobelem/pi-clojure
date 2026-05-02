@@ -131,6 +131,9 @@ Reglas de coordinación:
 
 Más detalles: [`docs/research/2026-05-01-parallel-pi-workflow.md`](docs/research/2026-05-01-parallel-pi-workflow.md).
 
+Checklist operativo reusable para intake, TDD, integración, cierre y limpieza:
+[`docs/multi-agent-cycle-checklist.md`](docs/multi-agent-cycle-checklist.md).
+
 ## Gestión de proyecto
 
 Usamos GitHub Issues para tareas concretas y milestones para agrupar objetivos.

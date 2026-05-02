@@ -58,6 +58,30 @@
                       messages))
        "\n"))
 
+(defn format-conversation-with-meta [store room messages]
+  (str "# " (:room/title room) "\n\n"
+       "## Mensajes\n\n"
+       (str/join "\n\n"
+                 (map (fn [message]
+                        (let [handle (handle-by-id store (:message/author-id message))]
+                          (str (:message/sequence message)
+                               ". " handle ": " (:message/body-markdown message) "\n"
+                               "   - Autor: " handle "\n"
+                               "   - timestamp: " (or (:message/created-at message) "no disponible") "\n"
+                               "   - client-txn-id: " (or (:message/client-txn-id message) "no disponible"))))
+                      messages))
+       "\n"))
+
+(defn show-options [args]
+  (loop [remaining args
+         options {:with-meta? false}]
+    (case (first remaining)
+      nil options
+      "--with-meta" (recur (next remaining)
+                            (assoc options :with-meta? true))
+      (throw (ex-info "opción de show desconocida"
+                      {:option (first remaining)})))))
+
 (defn export-options [args]
   (loop [remaining args
          options {:force? false}]
@@ -134,10 +158,15 @@
       (print-warnings! (:message/warnings message)))
 
     "show"
-    (let [[room-name handle] args
+    (let [[room-name handle & option-args] args
           user (require-user store handle)
-          room (require-room store room-name)]
-      (print (format-conversation store room (chat/read-room store (:user/id user) (:room/id room)))))
+          room (require-room store room-name)
+          messages (chat/read-room store (:user/id user) (:room/id room))
+          {:keys [with-meta?]} (show-options option-args)]
+      (print ((if with-meta? format-conversation-with-meta format-conversation)
+              store
+              room
+              messages)))
 
     "participants"
     (let [[room-name] args

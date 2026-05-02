@@ -79,6 +79,28 @@
              (run! state-file "show" "general" "andres")))
       (io/delete-file state-file true))))
 
+(deftest show-room-with-message-metadata
+  (testing "given messages with known client txn ids, when showing a room with metadata, then audit fields are visible in order"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "andres")
+      (run! state-file "send" "general" "andres" "Primer mensaje" "client-txn-1")
+      (run! state-file "send" "general" "andres" "Segundo mensaje" "client-txn-2")
+      (let [shown (run! state-file "show" "general" "andres" "--with-meta")]
+        (is (str/includes? shown "# General"))
+        (is (str/includes? shown "1. andres: Primer mensaje"))
+        (is (str/includes? shown "2. andres: Segundo mensaje"))
+        (is (< (str/index-of shown "client-txn-1")
+               (str/index-of shown "client-txn-2")))
+        (is (str/includes? shown "Autor: andres"))
+        (is (str/includes? shown "client-txn-id: client-txn-1"))
+        (is (str/includes? shown "client-txn-id: client-txn-2"))
+        (is (re-find #"timestamp: .+" shown)))
+      (is (= "# General\n\n## Mensajes\n\n1. andres: Primer mensaje\n2. andres: Segundo mensaje\n"
+             (run! state-file "show" "general" "andres")))
+      (io/delete-file state-file true))))
+
 (deftest export-room-to-markdown-file
   (testing "given an output path, when exporting a room, then it writes the same Markdown as stdout and confirms the export"
     (let [state-file (temp-state-file)

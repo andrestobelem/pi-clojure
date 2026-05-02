@@ -1,7 +1,8 @@
 (ns pi-clojure.domain.user
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
-            [pi-clojure.domain.markdown :as markdown]))
+            [pi-clojure.domain.markdown :as markdown])
+  (:import [java.time Instant]))
 
 (def min-handle-length 3)
 (def max-handle-length 39)
@@ -228,6 +229,7 @@
                                   :room-id room-id
                                   :author-id author-id
                                   :sequence sequence
+                                  :created-at (str (Instant/now))
                                   :body-markdown body-markdown}
                   (seq warnings)
                   (assoc :message/warnings (vec warnings))

@@ -296,12 +296,18 @@
           created-user (user/create-user! store "andres" :user.type/human)
           shared-room (user/create-shared-room! store "General")]
       (user/join-room! store (:user/id created-user) (:room/id shared-room))
-      (is (= #:message{:id "message:room:shared:general:1"
-                       :room-id (:room/id shared-room)
-                       :author-id (:user/id created-user)
-                       :sequence 1
-                       :body-markdown "Hola **mundo**"}
-             (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")))))
+      (let [message (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")]
+        (is (= #:message{:id "message:room:shared:general:1"
+                         :room-id (:room/id shared-room)
+                         :author-id (:user/id created-user)
+                         :sequence 1
+                         :body-markdown "Hola **mundo**"}
+               (select-keys message [:message/id
+                                     :message/room-id
+                                     :message/author-id
+                                     :message/sequence
+                                     :message/body-markdown])))
+        (is (string? (:message/created-at message))))))
 
   (testing "given an active participant, when sending a message with only warnings, then it persists the message and includes stable warnings"
     (let [store (user/create-store)

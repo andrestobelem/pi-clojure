@@ -157,6 +157,16 @@ Para que un reintento no duplique mensajes, `chat send` acepta un
 `client-txn-id` estable como quinto argumento. Repetir el mismo
 `author-id + client-txn-id` devuelve el mismo mensaje lógico.
 
+Para auditar reintentos o duplicados sin cambiar la salida Markdown por defecto,
+`chat show` acepta una vista explícita con metadata:
+
+```sh
+clojure -M:chat show general andres --with-meta
+```
+
+La vista incluye orden, autor, timestamp y `client-txn-id` cuando está
+registrado.
+
 Demo reproducible del flujo completo:
 [`docs/demo-export-chat.md`](docs/demo-export-chat.md).
 

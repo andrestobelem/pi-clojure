@@ -44,6 +44,12 @@
        "<pre class=\"message__body\">" (html-escape (:message/body-markdown message)) "</pre>"
        "</li>"))
 
+(defn render-create-room-form []
+  (str "<form method=\"post\" action=\"/rooms\" class=\"room-form\">"
+       "<label>Nombre de sala <input name=\"title\" autocomplete=\"off\"></label>"
+       "<button type=\"submit\">Crear sala</button>"
+       "</form>"))
+
 (defn render-publish-form [room]
   (str "<form method=\"post\" action=\"/messages\" class=\"publish-form\">"
        "<input type=\"hidden\" name=\"room-id\" value=\"" (html-escape (:room/id room)) "\">"
@@ -93,6 +99,7 @@
           (str "<p class=\"flash flash--" (html-escape (:type flash)) "\">"
                (html-escape (:message flash))
                "</p>"))
+        (render-create-room-form)
         (render-rooms store)
         "\n</main>\n"
         "</body>\n"
@@ -105,6 +112,27 @@
 (defn require-room [store room-id]
   (or (chat/find-room store room-id)
       (throw (ex-info "La sala no existe" {:room-id room-id}))))
+
+(defn valid-room-title? [title]
+  (and (not (str/blank? title))
+       (re-matches #"[\p{L}\p{N}][\p{L}\p{N} _-]*" title)))
+
+(defn create-room! [store params]
+  (try
+    (let [title (str/trim (get params "title" ""))
+          room-id (str "room:shared:" (chat/room-slug-for-title title))]
+      (when-not (valid-room-title? title)
+        (throw (ex-info "Nombre de sala inválido" {:title title})))
+      (when (chat/find-room store room-id)
+        (throw (ex-info "La sala ya existe" {:title title})))
+      (chat/create-shared-room! store title)
+      {:status 200
+       :html (render-home-page store {:type "success"
+                                      :message "Sala creada"})})
+    (catch clojure.lang.ExceptionInfo _
+      {:status 400
+       :html (render-home-page store {:type "error"
+                                      :message "No se pudo crear la sala"})})))
 
 (defn publish-message! [store params]
   (try
@@ -145,11 +173,20 @@
 (defn request-body [^HttpExchange exchange]
   (slurp (.getRequestBody exchange)))
 
+(defn persist-success! [state-file store status]
+  (when (= 200 status)
+    (save-store! state-file store)))
+
+(defn handle-post-room! [state-file exchange]
+  (let [store (load-store state-file)
+        {:keys [status html]} (create-room! store (parse-form-body (request-body exchange)))]
+    (persist-success! state-file store status)
+    (send-response! exchange status html)))
+
 (defn handle-post-message! [state-file exchange]
   (let [store (load-store state-file)
         {:keys [status html]} (publish-message! store (parse-form-body (request-body exchange)))]
-    (when (= 200 status)
-      (save-store! state-file store))
+    (persist-success! state-file store status)
     (send-response! exchange status html)))
 
 (defn home-handler [state-file]
@@ -160,6 +197,9 @@
         (cond
           (and (= "GET" method) (= "/" path))
           (send-response! exchange 200 (render-home-page (load-store state-file)))
+
+          (and (= "POST" method) (= "/rooms" path))
+          (handle-post-room! state-file exchange)
 
           (and (= "POST" method) (= "/messages" path))
           (handle-post-message! state-file exchange)

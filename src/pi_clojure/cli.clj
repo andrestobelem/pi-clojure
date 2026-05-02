@@ -53,6 +53,27 @@
                       messages))
        "\n"))
 
+(defn export-options [args]
+  (loop [remaining args
+         options {:force? false}]
+    (case (first remaining)
+      nil options
+      "--output" (recur (nnext remaining)
+                         (assoc options :output (second remaining)))
+      "--force" (recur (next remaining)
+                        (assoc options :force? true))
+      (throw (ex-info "opción de exportación desconocida"
+                      {:option (first remaining)})))))
+
+(defn write-export-file! [path markdown force?]
+  (let [file (io/file path)]
+    (when (and (.exists file) (not force?))
+      (throw (ex-info "El archivo de exportación ya existe"
+                      {:error/type :export/file-exists
+                       :error/path [:export/output]
+                       :path path})))
+    (spit file markdown)))
+
 (defn run-command! [store command args]
   (case command
     "create-user"
@@ -91,10 +112,19 @@
       (prn (chat/list-active-participants store (:room/id room))))
 
     "export"
-    (let [[room-name handle] args
+    (let [[room-name handle & option-args] args
           _user (require-user store handle)
-          room (require-room store room-name)]
-      (print (chat/export-room-markdown store (:room/id room))))
+          room (require-room store room-name)
+          {:keys [output force?]} (export-options option-args)
+          markdown (chat/export-room-markdown store (:room/id room))]
+      (if output
+        (do
+          (write-export-file! output markdown force?)
+          (println (str "Exportación escrita en " output
+                        " para la sala " room-name
+                        " con " (count (chat/messages-in-room store (:room/id room)))
+                        " mensajes")))
+        (print markdown)))
 
     "leave"
     (let [[room-name handle] args

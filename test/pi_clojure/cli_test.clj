@@ -32,6 +32,9 @@
   (run! state-file "join" "general" "andres")
   (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1"))
 
+(def valid-backlog-message
+  "### Fricción observada\n\nAlgo molesta.\n\n### Historia candidata\n\nComo usuaria, quiero validar.\n\n### Criterios de aceptación\n\n- informa éxito\n\n### Primer test rojo sugerido\n\nFalla primero.")
+
 (deftest minimal-chat-cli-flow
   (testing "given command invocations sharing a state file, when using the MVP flow, then chat state is persisted and rendered"
     (let [state-file (temp-state-file)]
@@ -213,6 +216,34 @@
       (is (str/includes? help-output "client-txn-1"))
       (is (str/includes? help-output "Evita comillas dobles"))
       (is (false? (.exists state-file))))))
+
+(deftest validate-backlog-message-cli
+  (testing "given a backlog message missing a required heading, when validating structure, then it fails without creating state"
+    (let [state-file (temp-state-file)
+          {:keys [exit-code out err]} (run-main-status! state-file
+                                                        "validate-backlog-message"
+                                                        "### Fricción observada\n\nAlgo molesta.\n\n### Criterios de aceptación\n\n- uno\n\n### Primer test rojo sugerido\n\nFalla primero.")]
+      (is (= 1 exit-code))
+      (is (= "" out))
+      (is (str/includes? err "Error: Falta encabezado requerido: ### Historia candidata"))
+      (is (str/includes? err "Código: backlog-message/missing-heading"))
+      (is (str/includes? err "Campo: message.body"))
+      (is (false? (.exists state-file)))))
+
+  (testing "given a valid backlog message, when validating structure, then it reports it can be published without creating state"
+    (let [state-file (temp-state-file)]
+      (is (= "Mensaje backlog válido: puede publicarse\n"
+             (run! state-file "validate-backlog-message" valid-backlog-message)))
+      (is (false? (.exists state-file)))))
+
+  (testing "given a valid backlog message in a file, when validating structure, then it reads the file without creating state"
+    (let [state-file (temp-state-file)
+          message-file (temp-output-file)]
+      (spit message-file valid-backlog-message)
+      (is (= "Mensaje backlog válido: puede publicarse\n"
+             (run! state-file "validate-backlog-message" "--file" (.getPath message-file))))
+      (is (false? (.exists state-file)))
+      (io/delete-file message-file true))))
 
 (deftest validate-markdown-cli
   (testing "given valid Markdown, when validating before sending, then it prints success without creating state"

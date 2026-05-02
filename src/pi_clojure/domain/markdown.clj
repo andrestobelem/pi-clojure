@@ -8,6 +8,12 @@
 (def markdown-image-pattern #"!\[[^\]]*\]\(")
 (def markdown-link-destination-pattern #"(?i)(?<!!)\[[^\]]*\]\(\s*([^\s)]*)")
 
+(def required-backlog-message-headings
+  ["### Fricción observada"
+   "### Historia candidata"
+   "### Criterios de aceptación"
+   "### Primer test rojo sugerido"])
+
 (defn valid-result [body-markdown]
   {:valid? true
    :markdown body-markdown})
@@ -44,6 +50,12 @@
   #:error{:type :markdown/image-not-allowed
           :message "Las imágenes Markdown todavía no están permitidas; compartí un link http:// o https:// en su lugar"
           :path [:message/body]})
+
+(defn missing-backlog-heading-error [heading]
+  #:error{:type :backlog-message/missing-heading
+          :message (str "Falta encabezado requerido: " heading)
+          :path [:message/body]
+          :heading heading})
 
 (defn blank-message? [body-markdown]
   (or (not (string? body-markdown))
@@ -144,6 +156,25 @@
 
 (defn validate-message-markdown! [body-markdown]
   (let [result (validate-message-markdown body-markdown)]
+    (when-not (:valid? result)
+      (throw (ex-info (validation-error-message result) result)))
+    body-markdown))
+
+(defn missing-backlog-headings [body-markdown]
+  (remove #(str/includes? body-markdown %) required-backlog-message-headings))
+
+(defn validate-backlog-message [body-markdown]
+  (let [{base-errors :errors} (validate-message-markdown body-markdown)
+        heading-errors (when (string? body-markdown)
+                         (map missing-backlog-heading-error
+                              (missing-backlog-headings body-markdown)))
+        errors (concat base-errors heading-errors)]
+    (if (empty? errors)
+      (valid-result body-markdown)
+      (error-result errors))))
+
+(defn validate-backlog-message! [body-markdown]
+  (let [result (validate-backlog-message body-markdown)]
     (when-not (:valid? result)
       (throw (ex-info (validation-error-message result) result)))
     body-markdown))

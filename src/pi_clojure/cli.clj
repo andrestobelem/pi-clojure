@@ -133,8 +133,14 @@
          "\n")
     "No hay salas disponibles.\n"))
 
+(defn message-body-arg [args]
+  (let [[first-arg second-arg] args]
+    (if (= "--file" first-arg)
+      (slurp second-arg)
+      first-arg)))
+
 (defn persistent-command? [command]
-  (not (contains? #{"validate-markdown" "help" "rooms"} command)))
+  (not (contains? #{"validate-markdown" "validate-backlog-message" "help" "rooms"} command)))
 
 (defn warning-field-name [warning]
   (when-let [path (first (:warning/path warning))]
@@ -184,6 +190,12 @@
     (let [[body-markdown] args]
       (markdown/validate-message-markdown! body-markdown)
       (println "Markdown válido"))
+
+    "validate-backlog-message"
+    (let [body-markdown (message-body-arg args)]
+      (markdown/validate-backlog-message! body-markdown)
+      (println "Mensaje backlog válido: puede publicarse"))
+
     "help"
     (let [[topic] args]
       (print (help-text topic)))

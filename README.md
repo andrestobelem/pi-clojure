@@ -208,6 +208,15 @@ Demo reproducible del flujo completo:
 Demo dogfood con agentes usando el chat:
 [`docs/demo-agent-roundtable.md`](docs/demo-agent-roundtable.md).
 
+Primera interfaz web local de lectura:
+
+```sh
+clojure -M:web
+```
+
+Abrir <http://localhost:8080>. Usa el mismo `PI_CHAT_STATE_FILE` que la CLI y,
+por ahora, solo permite leer salas y mensajes.
+
 Tablero GitHub Projects:
 
 - [`pi-clojure MVP`](https://github.com/users/andrestobelem/projects/2)

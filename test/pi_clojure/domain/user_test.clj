@@ -486,6 +486,40 @@
                :user-type :user.type/human}]
              (user/list-active-participants store (:room/id personal-room)))))))
 
+(deftest create-room-snapshot
+  (testing "given a room with messages, when creating a snapshot, then it captures the last included sequence without changing messages or events"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id andres) (:room/id shared-room))
+      (user/send-message! store (:user/id andres) (:room/id shared-room) "Hola" "txn-1")
+      (user/send-message! store (:user/id andres) (:room/id shared-room) "Chau" "txn-2")
+      (let [messages-before (user/read-room store (:user/id andres) (:room/id shared-room))
+            events-before (user/list-room-events store (:room/id shared-room))
+            snapshot (user/create-room-snapshot! store (:user/id andres) (:room/id shared-room))]
+        (is (= #:snapshot{:id "snapshot:room:shared:general:2"
+                          :room-id (:room/id shared-room)
+                          :actor-id (:user/id andres)
+                          :last-sequence 2}
+               snapshot))
+        (is (= snapshot
+               (user/find-snapshot store (:snapshot/id snapshot))))
+        (is (= messages-before
+               (user/read-room store (:user/id andres) (:room/id shared-room))))
+        (is (= events-before
+               (user/list-room-events store (:room/id shared-room)))))))
+
+  (testing "given an empty room, when creating a snapshot, then it is allowed with last sequence zero"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id andres) (:room/id shared-room))
+      (is (= #:snapshot{:id "snapshot:room:shared:general:0"
+                        :room-id (:room/id shared-room)
+                        :actor-id (:user/id andres)
+                        :last-sequence 0}
+             (user/create-room-snapshot! store (:user/id andres) (:room/id shared-room)))))))
+
 (deftest export-room-as-markdown
   (testing "given out-of-order messages, when an active participant exports a shared room, then it includes room metadata, author handles and ordered original Markdown"
     (let [store (user/create-store)

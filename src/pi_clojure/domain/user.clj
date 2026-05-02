@@ -68,7 +68,8 @@
         :participations/active #{}
         :messages/by-room-id {}
         :messages/by-client-txn-id {}
-        :events/by-room-id {}}))
+        :events/by-room-id {}
+        :snapshots/by-id {}}))
 
 (defn find-by-handle [store handle]
   (get-in @store [:users/by-handle handle]))
@@ -255,6 +256,9 @@
 (defn list-room-events [store room-id]
   (get-in @store [:events/by-room-id room-id] []))
 
+(defn find-snapshot [store snapshot-id]
+  (get-in @store [:snapshots/by-id snapshot-id]))
+
 (defn list-message-events [store room-id]
   (list-room-events store room-id))
 
@@ -300,8 +304,24 @@
                    (map #(export-message-markdown store %) messages))
          "\n")))
 
+(defn last-message-sequence [store room-id]
+  (reduce max 0 (map :message/sequence (messages-in-room store room-id))))
+
 (defn next-message-sequence [store room-id]
-  (inc (reduce max 0 (map :message/sequence (messages-in-room store room-id)))))
+  (inc (last-message-sequence store room-id)))
+
+(defn snapshot-id [room-id last-sequence]
+  (str "snapshot:" room-id ":" last-sequence))
+
+(defn create-room-snapshot! [store actor-id room-id]
+  (require-export-access! store actor-id room-id)
+  (let [last-sequence (last-message-sequence store room-id)
+        snapshot #:snapshot{:id (snapshot-id room-id last-sequence)
+                            :room-id room-id
+                            :actor-id actor-id
+                            :last-sequence last-sequence}]
+    (swap! store assoc-in [:snapshots/by-id (:snapshot/id snapshot)] snapshot)
+    snapshot))
 
 (defn create-message! [store user-id room-id body-markdown client-txn-id]
   (markdown/validate-message-markdown! body-markdown)

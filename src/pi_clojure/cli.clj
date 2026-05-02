@@ -106,8 +106,35 @@
                        :path path})))
     (spit file markdown)))
 
+(defn room-display-name [room]
+  (chat/room-slug-for-title (:room/title room)))
+
+(defn room-activity-summary [store room]
+  {:name (room-display-name room)
+   :messages (count (chat/messages-in-room store (:room/id room)))
+   :participants (count (chat/list-active-participants store (:room/id room)))})
+
+(defn shared-room? [room]
+  (= :room.type/shared (:room/type room)))
+
+(defn room-activity-summaries [store]
+  (->> (chat/list-rooms store)
+       (filter shared-room?)
+       (map #(room-activity-summary store %))
+       (sort-by :name)))
+
+(defn format-room-activity-summary [{:keys [name messages participants]}]
+  (str "- " name " | mensajes: " messages " | participantes: " participants))
+
+(defn format-rooms [summaries]
+  (if (seq summaries)
+    (str "Salas:\n"
+         (str/join "\n" (map format-room-activity-summary summaries))
+         "\n")
+    "No hay salas disponibles.\n"))
+
 (defn persistent-command? [command]
-  (not (contains? #{"validate-markdown" "help"} command)))
+  (not (contains? #{"validate-markdown" "help" "rooms"} command)))
 
 (defn warning-field-name [warning]
   (when-let [path (first (:warning/path warning))]
@@ -160,6 +187,9 @@
     "help"
     (let [[topic] args]
       (print (help-text topic)))
+
+    "rooms"
+    (print (format-rooms (room-activity-summaries store)))
 
     "create-user"
     (let [[handle] args]

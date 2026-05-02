@@ -64,6 +64,35 @@
              (run! state-file "leave" "general" "andres")))
       (io/delete-file state-file true))))
 
+(deftest rooms-command-lists-shared-rooms-with-basic-activity
+  (testing "given shared rooms with messages and participants, when listing rooms, then output is stable and ordered"
+    (let [state-file (temp-state-file)]
+      (doseq [handle ["alice" "bob" "carol"]]
+        (run! state-file "create-user" handle))
+      (run! state-file "create-room" "beta")
+      (run! state-file "create-room" "alfa")
+      (run! state-file "join" "beta" "alice")
+      (run! state-file "join" "alfa" "alice")
+      (run! state-file "join" "alfa" "bob")
+      (run! state-file "join" "beta" "carol")
+      (run! state-file "send" "alfa" "alice" "Hola alfa" "txn-alfa-1")
+      (run! state-file "send" "alfa" "bob" "Respuesta alfa" "txn-alfa-2")
+      (run! state-file "send" "beta" "carol" "Hola beta" "txn-beta-1")
+      (is (= (str "Salas:\n"
+                  "- alfa | mensajes: 2 | participantes: 2\n"
+                  "- beta | mensajes: 1 | participantes: 2\n")
+             (run! state-file "rooms")))
+      (io/delete-file state-file true))))
+
+(deftest rooms-command-empty-state-is-clear-and-successful
+  (testing "given no rooms, when listing rooms from the binary entrypoint, then it prints a clear message and exits successfully"
+    (let [state-file (temp-state-file)
+          {:keys [exit-code out err]} (run-main-status! state-file "rooms")]
+      (is (= 0 exit-code))
+      (is (= "No hay salas disponibles.\n" out))
+      (is (= "" err))
+      (is (false? (.exists state-file))))))
+
 (deftest send-command-reports-idempotency-outcome
   (testing "given the same client txn id is retried, when sending, then the CLI reports creation vs reuse and keeps one message"
     (let [state-file (temp-state-file)]

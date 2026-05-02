@@ -129,6 +129,16 @@
   (doseq [warning warnings]
     (println (format-warning warning))))
 
+(defn send-outcome [existing-message]
+  (if existing-message :message/reused :message/created))
+
+(defn format-send-confirmation [room-name handle client-txn-id outcome]
+  (str (case outcome
+         :message/reused (str "Mensaje reutilizado por idempotencia en " room-name " por " handle)
+         :message/created (str "Mensaje creado y enviado a " room-name " por " handle))
+       "\n"
+       "client-txn-id: " client-txn-id))
+
 (def send-help
   (str "Uso: clojure -M:chat send <sala> <handle> <markdown> <client-txn-id>\n\n"
        "Ejemplo seguro para bash/zsh con Markdown y backticks:\n\n"
@@ -172,8 +182,10 @@
     (let [[room-name handle body-markdown client-txn-id] args
           user (require-user store handle)
           room (require-room store room-name)
+          existing-message (chat/find-message-by-client-txn-id store (:user/id user) client-txn-id)
+          outcome (send-outcome existing-message)
           message (chat/send-message! store (:user/id user) (:room/id room) body-markdown client-txn-id)]
-      (println (str "Mensaje enviado a " room-name " por " handle))
+      (println (format-send-confirmation room-name handle client-txn-id outcome))
       (print-warnings! (:message/warnings message)))
 
     "show"

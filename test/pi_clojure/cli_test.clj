@@ -45,9 +45,11 @@
                   ":handle \"andres\", "
                   ":user-type :user.type/human}]\n")
              (run! state-file "participants" "general")))
-      (is (= "Mensaje enviado a general por andres\n"
+      (is (= (str "Mensaje creado y enviado a general por andres\n"
+                  "client-txn-id: client-txn-1\n")
              (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
-      (is (= "Mensaje enviado a general por andres\n"
+      (is (= (str "Mensaje reutilizado por idempotencia en general por andres\n"
+                  "client-txn-id: client-txn-1\n")
              (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
       (is (= "# General\n\n## Mensajes\n\n1. andres: Hola **mundo**\n"
              (run! state-file "show" "general" "andres")))
@@ -62,13 +64,30 @@
              (run! state-file "leave" "general" "andres")))
       (io/delete-file state-file true))))
 
+(deftest send-command-reports-idempotency-outcome
+  (testing "given the same client txn id is retried, when sending, then the CLI reports creation vs reuse and keeps one message"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "andres")
+      (is (= (str "Mensaje creado y enviado a general por andres\n"
+                  "client-txn-id: client-txn-1\n")
+             (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
+      (is (= (str "Mensaje reutilizado por idempotencia en general por andres\n"
+                  "client-txn-id: client-txn-1\n")
+             (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
+      (is (= "# General\n\n## Mensajes\n\n1. andres: Hola **mundo**\n"
+             (run! state-file "show" "general" "andres")))
+      (io/delete-file state-file true))))
+
 (deftest send-command-with-warnings
   (testing "given Markdown with only lint warnings, when sending, then it persists and prints success with warnings"
     (let [state-file (temp-state-file)]
       (run! state-file "create-user" "andres")
       (run! state-file "create-room" "general")
       (run! state-file "join" "general" "andres")
-      (is (= (str "Mensaje enviado a general por andres\n"
+      (is (= (str "Mensaje creado y enviado a general por andres\n"
+                  "client-txn-id: client-txn-1\n"
                   "Advertencia: bloque de código sin lenguaje en message.body\n")
              (run! state-file "send" "general" "andres" "```
 (+ 1 1)

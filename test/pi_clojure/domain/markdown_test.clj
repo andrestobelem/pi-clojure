@@ -35,7 +35,7 @@
                               :message "El mensaje contiene HTML crudo no permitido"
                               :path [:message/body]}
                      #:error{:type :markdown/unsafe-link
-                              :message "El mensaje contiene un link con protocolo no permitido"
+                              :message "Usá links http:// o https://; otros protocolos no están permitidos"
                               :path [:message/body]}]}
            (markdown/validate-message-markdown
             "Hola <script>alert(1)</script> [click](javascript:alert(1))"))))
@@ -45,7 +45,30 @@
             :errors [#:error{:type :markdown/raw-html
                               :message "El mensaje contiene HTML crudo no permitido"
                               :path [:message/body]}]}
-           (markdown/validate-message-markdown "Hola <!-- secreto -->")))))
+           (markdown/validate-message-markdown "Hola <!-- secreto -->"))))
+
+  (testing "given an http link, when validating, then it is accepted"
+    (is (= {:valid? true
+            :markdown "Ver [sitio](http://example.com)"}
+           (markdown/validate-message-markdown "Ver [sitio](http://example.com)"))))
+
+  (testing "given unsafe or empty link protocols, when validating, then it returns an actionable link error"
+    (doseq [body ["Ver [sitio](javascript:alert(1))"
+                  "Ver [sitio](data:text/html;base64,PGgxPkZvbzwvaDE+)"
+                  "Ver [sitio](/interno)"
+                  "Ver [sitio]()"]]
+      (is (= {:valid? false
+              :errors [#:error{:type :markdown/unsafe-link
+                                :message "Usá links http:// o https://; otros protocolos no están permitidos"
+                                :path [:message/body]}]}
+             (markdown/validate-message-markdown body)))))
+
+  (testing "given a Markdown image, when validating, then it returns an actionable image error"
+    (is (= {:valid? false
+            :errors [#:error{:type :markdown/image-not-allowed
+                              :message "Las imágenes Markdown todavía no están permitidas; compartí un link http:// o https:// en su lugar"
+                              :path [:message/body]}]}
+           (markdown/validate-message-markdown "![alt](https://example.com/a.png)")))))
 
 (deftest invalid-markdown-exceptions-are-clear
   (testing "given invalid Markdown, when requiring valid Markdown, then the exception message is understandable and data is structured"

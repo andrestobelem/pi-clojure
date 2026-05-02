@@ -4,7 +4,8 @@
 (def max-message-markdown-length 4000)
 
 (def raw-html-pattern #"(?is)<!--.*?-->|<\s*/?\s*[a-z][^>]*>")
-(def unsafe-link-pattern #"(?i)\]\(\s*(?!https?://)[a-z][a-z0-9+.-]*:")
+(def markdown-image-pattern #"!\[[^\]]*\]\(")
+(def markdown-link-destination-pattern #"(?i)(?<!!)\[[^\]]*\]\(\s*([^\s)]*)")
 
 (defn valid-result [body-markdown]
   {:valid? true
@@ -35,7 +36,12 @@
 
 (defn unsafe-link-error []
   #:error{:type :markdown/unsafe-link
-          :message "El mensaje contiene un link con protocolo no permitido"
+          :message "Usá links http:// o https://; otros protocolos no están permitidos"
+          :path [:message/body]})
+
+(defn image-not-allowed-error []
+  #:error{:type :markdown/image-not-allowed
+          :message "Las imágenes Markdown todavía no están permitidas; compartí un link http:// o https:// en su lugar"
           :path [:message/body]})
 
 (defn blank-message? [body-markdown]
@@ -48,8 +54,18 @@
 (defn contains-raw-html? [body-markdown]
   (boolean (re-find raw-html-pattern body-markdown)))
 
+(defn contains-markdown-image? [body-markdown]
+  (boolean (re-find markdown-image-pattern body-markdown)))
+
+(defn safe-link-destination? [destination]
+  (boolean (re-find #"(?i)^https?://" destination)))
+
+(defn link-destinations [body-markdown]
+  (map second (re-seq markdown-link-destination-pattern body-markdown)))
+
 (defn contains-unsafe-link? [body-markdown]
-  (boolean (re-find unsafe-link-pattern body-markdown)))
+  (boolean (some (complement safe-link-destination?)
+                 (link-destinations body-markdown))))
 
 (defn validation-errors [body-markdown]
   (cond-> []
@@ -63,6 +79,10 @@
     (and (string? body-markdown)
          (contains-raw-html? body-markdown))
     (conj (raw-html-error))
+
+    (and (string? body-markdown)
+         (contains-markdown-image? body-markdown))
+    (conj (image-not-allowed-error))
 
     (and (string? body-markdown)
          (contains-unsafe-link? body-markdown))

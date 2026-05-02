@@ -8,6 +8,10 @@
 
 (def default-state-file ".pi-chat.edn")
 
+(defn state-file-from-env []
+  (or (System/getenv "PI_CHAT_STATE_FILE")
+      default-state-file))
+
 (defn load-store [state-file]
   (let [file (io/file state-file)]
     (if (.exists file)
@@ -186,4 +190,7 @@
         1))))
 
 (defn -main [& args]
-  (System/exit (main-status! default-state-file args)))
+  (let [status (main-status! (state-file-from-env) args)]
+    (flush)
+    (.flush *err*)
+    (System/exit status)))

@@ -157,6 +157,9 @@ Para que un reintento no duplique mensajes, `chat send` acepta un
 `client-txn-id` estable como quinto argumento. Repetir el mismo
 `author-id + client-txn-id` devuelve el mismo mensaje lógico.
 
+Demo reproducible del flujo completo:
+[`docs/demo-export-chat.md`](docs/demo-export-chat.md).
+
 Tablero GitHub Projects:
 
 - [`pi-clojure MVP`](https://github.com/users/andrestobelem/projects/2)

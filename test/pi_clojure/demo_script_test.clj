@@ -1,0 +1,37 @@
+(ns pi-clojure.demo-script-test
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]))
+
+(defn temp-demo-dir []
+  (let [dir (java.nio.file.Files/createTempDirectory "pi-clojure-demo" (make-array java.nio.file.attribute.FileAttribute 0))]
+    (.toFile dir)))
+
+(defn run-demo! [demo-dir]
+  (let [builder (doto (ProcessBuilder. ["bash" "scripts/demo-export-chat.sh"])
+                  (.directory (io/file ".")))
+        _ (.put (.environment builder) "DEMO_TMP_DIR" (.getPath demo-dir))
+        process (.start builder)
+        exit-code (.waitFor process)]
+    {:exit-code exit-code
+     :out (slurp (.getInputStream process))
+     :err (slurp (.getErrorStream process))}))
+
+(deftest demo-export-chat-script
+  (testing "given an isolated temp directory, when running the demo script, then it exercises chat flow and verifies exported Markdown"
+    (let [demo-dir (temp-demo-dir)
+          {:keys [exit-code out err]} (run-demo! demo-dir)
+          export-file (io/file demo-dir "general-export.md")]
+      (is (= 0 exit-code) err)
+      (is (str/includes? out "$ clojure -M:chat create-user andres"))
+      (is (str/includes? out "Sala personal de andres disponible"))
+      (is (str/includes? out "# General"))
+      (is (str/includes? out "1. andres: Hola **equipo**"))
+      (is (str/includes? out "2. zoe: - item uno"))
+      (is (str/includes? out "Exportación verificada:"))
+      (is (.exists export-file))
+      (is (str/includes? (slurp export-file) "Hola **equipo**"))
+      (is (str/includes? (slurp export-file) "- item uno"))
+      (io/delete-file export-file true)
+      (io/delete-file (io/file demo-dir "state.edn") true)
+      (io/delete-file demo-dir true))))

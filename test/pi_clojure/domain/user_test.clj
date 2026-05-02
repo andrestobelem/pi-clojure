@@ -300,6 +300,71 @@
         (is (= 1
                (count (user/list-message-events store (:room/id shared-room))))))))
 
+  (testing "given a repeated client transaction with another Markdown, when sending again, then it rejects the incompatible retry without side effects"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (let [first-send (user/send-message! store
+                                           (:user/id created-user)
+                                           (:room/id shared-room)
+                                           "Hola **mundo**"
+                                           "client-txn-1")]
+        (try
+          (user/send-message! store
+                              (:user/id created-user)
+                              (:room/id shared-room)
+                              "Chau **mundo**"
+                              "client-txn-1")
+          (is false "expected idempotency conflict")
+          (catch clojure.lang.ExceptionInfo ex
+            (is (= "client-txn-id ya fue usado para otro mensaje"
+                   (ex-message ex)))
+            (is (= {:error/type :idempotency/conflict
+                    :error/path [:message/client-txn-id]
+                    :message/client-txn-id "client-txn-1"
+                    :message/existing-room-id (:room/id shared-room)
+                    :message/attempted-room-id (:room/id shared-room)}
+                   (ex-data ex))))
+          (finally
+            (is (= [first-send]
+                   (user/read-room store (:user/id created-user) (:room/id shared-room))))
+            (is (= 1
+                   (count (user/list-message-events store (:room/id shared-room))))))))))
+
+  (testing "given a repeated client transaction in another room, when sending again, then it rejects the incompatible retry without side effects"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          general-room (user/create-shared-room! store "General")
+          random-room (user/create-shared-room! store "Random")]
+      (user/join-room! store (:user/id created-user) (:room/id general-room))
+      (user/join-room! store (:user/id created-user) (:room/id random-room))
+      (let [first-send (user/send-message! store
+                                           (:user/id created-user)
+                                           (:room/id general-room)
+                                           "Hola **mundo**"
+                                           "client-txn-1")]
+        (try
+          (user/send-message! store
+                              (:user/id created-user)
+                              (:room/id random-room)
+                              "Hola **mundo**"
+                              "client-txn-1")
+          (is false "expected idempotency conflict")
+          (catch clojure.lang.ExceptionInfo ex
+            (is (= :idempotency/conflict (:error/type (ex-data ex))))
+            (is (= (:room/id general-room) (:message/existing-room-id (ex-data ex))))
+            (is (= (:room/id random-room) (:message/attempted-room-id (ex-data ex)))))
+          (finally
+            (is (= [first-send]
+                   (user/read-room store (:user/id created-user) (:room/id general-room))))
+            (is (= []
+                   (user/read-room store (:user/id created-user) (:room/id random-room))))
+            (is (= 1
+                   (count (user/list-message-events store (:room/id general-room)))))
+            (is (= []
+                   (user/list-message-events store (:room/id random-room)))))))))
+
   (testing "given a user who is not an active participant, when reading or sending, then access is denied"
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)

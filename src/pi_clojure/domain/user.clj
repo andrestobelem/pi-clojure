@@ -271,14 +271,32 @@
     (record-message-created-event! store message)
     message))
 
+(defn idempotent-retry? [message room-id body-markdown]
+  (and (= room-id (:message/room-id message))
+       (= body-markdown (:message/body-markdown message))))
+
+(defn reject-idempotency-conflict! [message room-id client-txn-id]
+  (throw (ex-info "client-txn-id ya fue usado para otro mensaje"
+                  {:error/type :idempotency/conflict
+                   :error/path [:message/client-txn-id]
+                   :message/client-txn-id client-txn-id
+                   :message/existing-room-id (:message/room-id message)
+                   :message/attempted-room-id room-id})))
+
+(defn resolve-idempotent-retry! [message room-id body-markdown client-txn-id]
+  (if (idempotent-retry? message room-id body-markdown)
+    message
+    (reject-idempotency-conflict! message room-id client-txn-id)))
+
 (defn send-message!
   ([store user-id room-id body-markdown]
    (require-active-participant! store user-id room-id)
    (create-message! store user-id room-id body-markdown nil))
   ([store user-id room-id body-markdown client-txn-id]
    (require-active-participant! store user-id room-id)
-   (or (find-message-by-client-txn-id store user-id client-txn-id)
-       (create-message! store user-id room-id body-markdown client-txn-id))))
+   (if-let [message (find-message-by-client-txn-id store user-id client-txn-id)]
+     (resolve-idempotent-retry! message room-id body-markdown client-txn-id)
+     (create-message! store user-id room-id body-markdown client-txn-id))))
 
 (defn personal-room-id-for-user [created-user]
   (str "room:" (:user/id created-user)))

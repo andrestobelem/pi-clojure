@@ -118,6 +118,27 @@
              (run! state-file "export" "general" "andres")))
       (io/delete-file state-file true)))
 
+  (testing "given an incompatible idempotent retry, when running the binary entrypoint, then the CLI prints a structured conflict and does not persist the retry"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "andres")
+      (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")
+      (let [{:keys [exit-code out err]} (run-main-status! state-file
+                                                          "send"
+                                                          "general"
+                                                          "andres"
+                                                          "Chau **mundo**"
+                                                          "client-txn-1")]
+        (is (= 1 exit-code))
+        (is (= "" out))
+        (is (str/includes? err "Error: client-txn-id ya fue usado para otro mensaje"))
+        (is (str/includes? err "Código: idempotency/conflict"))
+        (is (str/includes? err "Campo: message.client-txn-id")))
+      (is (= "# General\n\n## Mensajes\n\n1. andres: Hola **mundo**\n"
+             (run! state-file "show" "general" "andres")))
+      (io/delete-file state-file true)))
+
   (testing "given a missing user or room, when running the binary entrypoint, then the CLI prints clear actionable errors"
     (let [state-file (temp-state-file)]
       (run! state-file "create-user" "andres")

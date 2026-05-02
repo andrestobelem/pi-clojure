@@ -54,14 +54,34 @@ Esto prueba dos cosas a la vez:
 
 ## Roles emergentes, no asignados
 
-Para evitar conversaciones artificiales, el prompt de cada agente debería decir:
+Para evitar conversaciones artificiales, los agentes no deberían tener roles
+rígidos. En cambio, cada agente recibe una **personalidad**: un sesgo de mirada
+que enriquece la conversación sin impedirle aportar en cualquier dimensión.
+
+Para el primer corte usaremos tres personalidades:
+
+- **Pragmática**: busca el slice más chico ejecutable, reduce alcance y propone
+  próximos pasos concretos.
+- **Escéptica**: busca bugs, riesgos, casos borde y ambigüedades; cada crítica
+  debería venir con un test rojo o una story verificable.
+- **Narradora**: cuida claridad, demo, experiencia de uso y cómo la conversación
+  se convierte en conocimiento exportable.
+
+Opcionalmente, después podemos sumar:
+
+- **Arquitecta**: cuida invariantes, límites de dominio y acoplamiento.
+- **Facilitadora**: resume consenso, detecta duplicados y convierte acuerdos en
+  backlog.
+
+El prompt común de cada agente debería decir:
 
 ```text
-Usá el chat compartido para colaborar. No tenés un rol fijo. Durante la
-conversación podés actuar como producto, dominio, UX, seguridad, tester,
-backlog gardener o implementador según lo que veas. Leé la sala antes de
-responder. Si encontrás fricción usando la CLI, registrala como hallazgo.
-Si ves una mejora accionable, proponé story con criterios y primer test rojo.
+Usá el chat compartido para colaborar. No tenés un rol fijo. Tu personalidad
+sesga tu mirada, pero durante la conversación podés actuar como producto,
+dominio, UX, seguridad, tester, backlog gardener o implementador según lo que
+veas. Leé la sala antes de responder. Si encontrás fricción usando la CLI,
+registrala como hallazgo. Si ves una mejora accionable, proponé story con
+criterios y primer test rojo.
 ```
 
 Los roles se vuelven etiquetas dentro de los mensajes, no identidades fijas:
@@ -90,13 +110,13 @@ rm -f "$PI_CHAT_STATE_FILE"
 ### 2. Crear usuarios y sala
 
 ```sh
-clojure -M:chat create-user agent-a
-clojure -M:chat create-user agent-b
-clojure -M:chat create-user agent-c
+clojure -M:chat create-user pragmatica
+clojure -M:chat create-user esceptica
+clojure -M:chat create-user narradora
 clojure -M:chat create-room roundtable
-clojure -M:chat join roundtable agent-a
-clojure -M:chat join roundtable agent-b
-clojure -M:chat join roundtable agent-c
+clojure -M:chat join roundtable pragmatica
+clojure -M:chat join roundtable esceptica
+clojure -M:chat join roundtable narradora
 ```
 
 ### 3. Lanzar agentes pi en tmux
@@ -128,7 +148,7 @@ el EDN en la primera versión.
 ### 5. Exportar evidencia
 
 ```sh
-clojure -M:chat export roundtable agent-a \
+clojure -M:chat export roundtable pragmatica \
   --output docs/ideas/agent-roundtable-demo.md \
   --force
 ```
@@ -182,9 +202,12 @@ por CLI para descubrir backlog.
 **Criterios de aceptación**:
 
 - Un script crea un estado aislado en `.demo/agent-roundtable.edn`.
-- El script crea al menos tres usuarios agente y una sala compartida.
+- El script crea al menos tres usuarios agente con personalidades distintas y
+  una sala compartida.
 - La demo lanza o documenta cómo lanzar agentes pi que leen y escriben en la sala
   usando la CLI real.
+- Los agentes no tienen roles rígidos; sus personalidades sesgan su mirada y los
+  roles emergen dentro de la conversación.
 - La conversación se exporta a Markdown.
 - El transcript incluye hallazgos, propuestas de mejora y al menos una story
   candidata con primer test rojo sugerido.

@@ -3,6 +3,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [pi-clojure.domain.markdown :as markdown]
             [pi-clojure.domain.user :as chat]))
 
 (def default-state-file ".pi-chat.edn")
@@ -74,8 +75,15 @@
                        :path path})))
     (spit file markdown)))
 
+(defn persistent-command? [command]
+  (not= "validate-markdown" command))
+
 (defn run-command! [store command args]
   (case command
+    "validate-markdown"
+    (let [[body-markdown] args]
+      (markdown/validate-message-markdown! body-markdown)
+      (println "Markdown válido"))
     "create-user"
     (let [[handle] args]
       (chat/create-user! store handle :user.type/human)
@@ -138,7 +146,8 @@
 (defn run! [state-file command & args]
   (let [store (load-store state-file)]
     (run-command! store command args)
-    (save-store! state-file store)))
+    (when (persistent-command? command)
+      (save-store! state-file store))))
 
 (defn error-code [error]
   (when-let [type (:error/type error)]

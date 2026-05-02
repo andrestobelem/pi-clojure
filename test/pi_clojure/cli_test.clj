@@ -88,6 +88,33 @@
       (io/delete-file state-file true)
       (io/delete-file output-file true))))
 
+(deftest validate-markdown-cli
+  (testing "given valid Markdown, when validating before sending, then it prints success without creating state"
+    (let [state-file (temp-state-file)]
+      (is (= "Markdown válido\n"
+             (run! state-file "validate-markdown" "Hola **mundo**")))
+      (is (false? (.exists state-file)))))
+
+  (testing "given an existing state file, when validating Markdown, then it does not modify state"
+    (let [state-file (temp-state-file)
+          original-state "{:existing true}"]
+      (spit state-file original-state)
+      (is (= "Markdown válido\n"
+             (run! state-file "validate-markdown" "Hola **mundo**")))
+      (is (= original-state (slurp state-file)))))
+
+  (testing "given invalid Markdown, when validating before sending, then it prints a structured error without creating state"
+    (let [state-file (temp-state-file)
+          {:keys [exit-code out err]} (run-main-status! state-file
+                                                        "validate-markdown"
+                                                        "<b>Hola</b>")]
+      (is (= 1 exit-code))
+      (is (= "" out))
+      (is (str/includes? err "Error: El mensaje contiene HTML crudo no permitido"))
+      (is (str/includes? err "Código: markdown/raw-html"))
+      (is (str/includes? err "Campo: message.body"))
+      (is (false? (.exists state-file))))))
+
 (deftest cli-errors
   (testing "given an unknown command, when running the CLI, then it returns usage feedback"
     (let [state-file (temp-state-file)]

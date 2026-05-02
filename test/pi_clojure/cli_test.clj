@@ -132,6 +132,16 @@
       (io/delete-file state-file true)
       (io/delete-file output-file true))))
 
+(deftest send-help-shows-safe-markdown-example
+  (testing "when asking for send help, then it shows a shell-safe Markdown example with backticks and a client txn id"
+    (let [state-file (temp-state-file)
+          help-output (run! state-file "help" "send")]
+      (is (str/includes? help-output "Uso: clojure -M:chat send"))
+      (is (str/includes? help-output "$'Mensaje con `codigo` inline'"))
+      (is (str/includes? help-output "client-txn-1"))
+      (is (str/includes? help-output "Evita comillas dobles"))
+      (is (false? (.exists state-file))))))
+
 (deftest validate-markdown-cli
   (testing "given valid Markdown, when validating before sending, then it prints success without creating state"
     (let [state-file (temp-state-file)]

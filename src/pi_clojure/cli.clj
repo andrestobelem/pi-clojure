@@ -104,7 +104,7 @@
     (spit file markdown)))
 
 (defn persistent-command? [command]
-  (not= "validate-markdown" command))
+  (not (contains? #{"validate-markdown" "help"} command)))
 
 (defn warning-field-name [warning]
   (when-let [path (first (:warning/path warning))]
@@ -126,12 +126,28 @@
   (doseq [warning warnings]
     (println (format-warning warning))))
 
+(def send-help
+  (str "Uso: clojure -M:chat send <sala> <handle> <markdown> <client-txn-id>\n\n"
+       "Ejemplo seguro para bash/zsh con Markdown y backticks:\n\n"
+       "  clojure -M:chat send general andres $'Mensaje con `codigo` inline' client-txn-1\n\n"
+       "Evita comillas dobles cuando el Markdown contiene backticks, porque la shell\n"
+       "puede intentar ejecutar sustituciones de comando.\n"))
+
+(defn help-text [topic]
+  (case topic
+    "send" send-help
+    (throw (ex-info "tema de ayuda desconocido" {:topic topic}))))
+
 (defn run-command! [store command args]
   (case command
     "validate-markdown"
     (let [[body-markdown] args]
       (markdown/validate-message-markdown! body-markdown)
       (println "Markdown válido"))
+    "help"
+    (let [[topic] args]
+      (print (help-text topic)))
+
     "create-user"
     (let [[handle] args]
       (chat/create-user! store handle :user.type/human)

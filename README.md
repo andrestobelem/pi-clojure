@@ -214,8 +214,9 @@ Primera interfaz web local de lectura:
 clojure -M:web
 ```
 
-Abrir <http://localhost:8080>. Usa el mismo `PI_CHAT_STATE_FILE` que la CLI y,
-por ahora, solo permite leer salas y mensajes.
+Abrir <http://localhost:8080>. Usa el mismo `PI_CHAT_STATE_FILE` que la CLI.
+La web permite leer salas compartidas y publicar mensajes en salas existentes
+con un handle ya unido a la sala, cuerpo Markdown y `client-txn-id`.
 
 Tablero GitHub Projects:
 

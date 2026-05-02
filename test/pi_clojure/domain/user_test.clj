@@ -3,6 +3,12 @@
             [clojure.test :refer [deftest is testing]]
             [pi-clojure.domain.user :as user]))
 
+(defn expected-participation-event [room user event-type]
+  #:event{:id (str "event:participation:" (:room/id room) ":" (:user/id user) ":" (name event-type))
+          :type (keyword "participation" (name event-type))
+          :room-id (:room/id room)
+          :actor-id (:user/id user)})
+
 (deftest create-user-with-handle-and-type
   (testing "given a handle and human type, when creating a user, then it returns a human user"
     (is (= #:user{:handle "andres"
@@ -216,14 +222,44 @@
       (user/join-room! store (:user/id created-user) (:room/id shared-room))
       (is (user/active-participant? store (:user/id created-user) (:room/id shared-room)))))
 
-  (testing "given an active participant, when joining again, then participation is not duplicated"
+  (testing "given an accessible shared room, when a user joins, then a participation joined event is recorded"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= [(expected-participation-event shared-room created-user :joined)]
+             (user/list-room-events store (:room/id shared-room))))))
+
+  (testing "given an active participant, when joining again, then participation and audit event are not duplicated"
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)
           shared-room (user/create-shared-room! store "General")]
       (user/join-room! store (:user/id created-user) (:room/id shared-room))
       (user/join-room! store (:user/id created-user) (:room/id shared-room))
       (is (= 1
-             (user/active-participation-count store (:user/id created-user) (:room/id shared-room))))))
+             (user/active-participation-count store (:user/id created-user) (:room/id shared-room))))
+      (is (= 1
+             (count (user/list-room-events store (:room/id shared-room)))))))
+
+  (testing "given an active participant, when leaving, then a participation left event is recorded"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/leave-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= [(expected-participation-event shared-room created-user :joined)
+              (expected-participation-event shared-room created-user :left)]
+             (user/list-room-events store (:room/id shared-room))))))
+
+  (testing "given an inactive participant, when leaving again, then participation left event is not duplicated"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/leave-room! store (:user/id created-user) (:room/id shared-room))
+      (user/leave-room! store (:user/id created-user) (:room/id shared-room))
+      (is (= [:participation/joined :participation/left]
+             (mapv :event/type (user/list-room-events store (:room/id shared-room)))))))
 
   (testing "given a participant with messages, when reading the room, then messages are ordered by sequence"
     (let [store (user/create-store)
@@ -272,12 +308,13 @@
           shared-room (user/create-shared-room! store "General")]
       (user/join-room! store (:user/id created-user) (:room/id shared-room))
       (let [message (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")]
-        (is (= [#:event{:id "event:message:room:shared:general:1:created"
+        (is (= [(expected-participation-event shared-room created-user :joined)
+                #:event{:id "event:message:room:shared:general:1:created"
                         :type :message/created
                         :room-id (:room/id shared-room)
                         :actor-id (:user/id created-user)
                         :message-id (:message/id message)}]
-               (user/list-message-events store (:room/id shared-room)))))))
+               (user/list-room-events store (:room/id shared-room)))))))
 
   (testing "given a repeated client transaction, when sending again, then it returns the same message without duplicate events"
     (let [store (user/create-store)
@@ -297,8 +334,8 @@
         (is (= first-send retry-send))
         (is (= [first-send]
                (user/read-room store (:user/id created-user) (:room/id shared-room))))
-        (is (= 1
-               (count (user/list-message-events store (:room/id shared-room))))))))
+        (is (= 2
+               (count (user/list-room-events store (:room/id shared-room))))))))
 
   (testing "given a repeated client transaction with another Markdown, when sending again, then it rejects the incompatible retry without side effects"
     (let [store (user/create-store)
@@ -329,8 +366,8 @@
           (finally
             (is (= [first-send]
                    (user/read-room store (:user/id created-user) (:room/id shared-room))))
-            (is (= 1
-                   (count (user/list-message-events store (:room/id shared-room))))))))))
+            (is (= 2
+                   (count (user/list-room-events store (:room/id shared-room))))))))))
 
   (testing "given a repeated client transaction in another room, when sending again, then it rejects the incompatible retry without side effects"
     (let [store (user/create-store)
@@ -360,10 +397,10 @@
                    (user/read-room store (:user/id created-user) (:room/id general-room))))
             (is (= []
                    (user/read-room store (:user/id created-user) (:room/id random-room))))
-            (is (= 1
-                   (count (user/list-message-events store (:room/id general-room)))))
-            (is (= []
-                   (user/list-message-events store (:room/id random-room)))))))))
+            (is (= 2
+                   (count (user/list-room-events store (:room/id general-room)))))
+            (is (= [(expected-participation-event random-room created-user :joined)]
+                   (user/list-room-events store (:room/id random-room)))))))))
 
   (testing "given a user who is not an active participant, when reading or sending, then access is denied"
     (let [store (user/create-store)

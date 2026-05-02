@@ -175,18 +175,34 @@
     (swap! store assoc-in [:rooms/by-id (:room/id room)] room)
     room))
 
+(defn participation-event [room-id user-id event-type]
+  #:event{:id (str "event:participation:" room-id ":" user-id ":" (name event-type))
+          :type (keyword "participation" (name event-type))
+          :room-id room-id
+          :actor-id user-id})
+
+(defn record-room-event! [store event]
+  (swap! store update-in [:events/by-room-id (:event/room-id event)] (fnil conj []) event)
+  event)
+
 (defn join-room! [store user-id room-id]
   (when-not (accessible-room? store user-id room-id)
     (throw (ex-info "room is not accessible"
                     {:user-id user-id
                      :room-id room-id})))
-  (swap! store update-in [:participations/active] conj [user-id room-id])
+  (let [already-active? (active-participant? store user-id room-id)]
+    (swap! store update-in [:participations/active] conj [user-id room-id])
+    (when-not already-active?
+      (record-room-event! store (participation-event room-id user-id :joined))))
   #:participation{:user-id user-id
                   :room-id room-id
                   :active? true})
 
 (defn leave-room! [store user-id room-id]
-  (swap! store update-in [:participations/active] disj [user-id room-id])
+  (let [was-active? (active-participant? store user-id room-id)]
+    (swap! store update-in [:participations/active] disj [user-id room-id])
+    (when was-active?
+      (record-room-event! store (participation-event room-id user-id :left))))
   #:participation{:user-id user-id
                   :room-id room-id
                   :active? false})
@@ -231,12 +247,13 @@
           :message-id (:message/id message)})
 
 (defn record-message-created-event! [store message]
-  (let [event (message-created-event message)]
-    (swap! store update-in [:events/by-room-id (:event/room-id event)] (fnil conj []) event)
-    event))
+  (record-room-event! store (message-created-event message)))
+
+(defn list-room-events [store room-id]
+  (get-in @store [:events/by-room-id room-id] []))
 
 (defn list-message-events [store room-id]
-  (get-in @store [:events/by-room-id room-id] []))
+  (list-room-events store room-id))
 
 (defn read-room [store user-id room-id]
   (require-active-participant! store user-id room-id)

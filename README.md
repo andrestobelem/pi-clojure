@@ -160,6 +160,9 @@ Para que un reintento no duplique mensajes, `chat send` acepta un
 Demo reproducible del flujo completo:
 [`docs/demo-export-chat.md`](docs/demo-export-chat.md).
 
+Demo dogfood con agentes usando el chat:
+[`docs/demo-agent-roundtable.md`](docs/demo-agent-roundtable.md).
+
 Tablero GitHub Projects:
 
 - [`pi-clojure MVP`](https://github.com/users/andrestobelem/projects/2)

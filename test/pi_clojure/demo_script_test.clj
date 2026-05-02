@@ -7,8 +7,8 @@
   (let [dir (java.nio.file.Files/createTempDirectory "pi-clojure-demo" (make-array java.nio.file.attribute.FileAttribute 0))]
     (.toFile dir)))
 
-(defn run-demo! [demo-dir]
-  (let [builder (doto (ProcessBuilder. ["bash" "scripts/demo-export-chat.sh"])
+(defn run-script! [script demo-dir]
+  (let [builder (doto (ProcessBuilder. ["bash" script])
                   (.directory (io/file ".")))
         _ (.put (.environment builder) "DEMO_TMP_DIR" (.getPath demo-dir))
         process (.start builder)
@@ -16,6 +16,12 @@
     {:exit-code exit-code
      :out (slurp (.getInputStream process))
      :err (slurp (.getErrorStream process))}))
+
+(defn run-demo! [demo-dir]
+  (run-script! "scripts/demo-export-chat.sh" demo-dir))
+
+(defn run-dogfood-demo! [demo-dir]
+  (run-script! "scripts/demo-agent-roundtable.sh" demo-dir))
 
 (deftest demo-export-chat-script
   (testing "given an isolated temp directory, when running the demo script, then it exercises chat flow and verifies exported Markdown"
@@ -34,4 +40,29 @@
       (is (str/includes? (slurp export-file) "- item uno"))
       (io/delete-file export-file true)
       (io/delete-file (io/file demo-dir "state.edn") true)
+      (io/delete-file demo-dir true))))
+
+(deftest dogfood-agent-roundtable-script
+  (testing "given an isolated temp directory, when running the dogfood roundtable, then agents use the chat and export candidate backlog"
+    (let [demo-dir (temp-demo-dir)
+          {:keys [exit-code out err]} (run-dogfood-demo! demo-dir)
+          state-file (io/file demo-dir "agent-roundtable.edn")
+          export-file (io/file demo-dir "agent-roundtable-demo.md")]
+      (is (= 0 exit-code) err)
+      (is (str/includes? out "Dogfood agent roundtable"))
+      (is (str/includes? out "Personalidades: pragmatica, esceptica, narradora"))
+      (is (.exists state-file))
+      (is (.exists export-file))
+      (let [markdown (slurp export-file)]
+        (is (str/includes? markdown "# Roundtable"))
+        (is (str/includes? markdown "Pragmática"))
+        (is (str/includes? markdown "Escéptica"))
+        (is (str/includes? markdown "Narradora"))
+        (is (str/includes? markdown "### Story candidata"))
+        (is (str/includes? markdown "Primer test rojo sugerido")))
+      (doseq [file ["pragmatica.md" "esceptica.md" "narradora.md"]]
+        (io/delete-file (io/file demo-dir "prompts" file) true))
+      (io/delete-file (io/file demo-dir "prompts") true)
+      (io/delete-file export-file true)
+      (io/delete-file state-file true)
       (io/delete-file demo-dir true))))

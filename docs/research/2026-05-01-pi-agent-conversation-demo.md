@@ -1,22 +1,24 @@
-# Demo de pi orquestando agentes que conversan entre sí
+# Demo de pi orquestando agentes que usan el chat del producto
 
 Fecha: 2026-05-01
 
 ## Objetivo
 
-Mostrar que pi no solo sirve como agente individual, sino como harness para
-orquestar varios agentes con roles distintos que conversan entre sí para llenar
-backlog, refinar stories y preparar implementación.
+Mostrar una forma de **dogfooding agentic**: varios agentes pi usan la CLI real
+de `pi-clojure` como sala de chat compartida para colaborar, descubrir fricción,
+proponer mejoras, crear backlog y luego ejecutar las stories con TDD.
 
-La demo debería ser comprensible para una persona mirando la terminal:
+La idea importante es que los agentes no necesitan roles rígidos. Pueden adquirir
+roles de forma emergente mientras conversan:
 
-```text
-moderador -> plantea objetivo
-producto  -> propone valor de usuario
-dominio   -> detecta reglas y riesgos
-ux        -> detecta feedback, seguridad y demo
-moderador -> sintetiza issues y siguiente tanda
-```
+- un agente puede notar un problema de UX;
+- otro puede convertirlo en regla de dominio;
+- otro puede proponer un test rojo;
+- otro puede agrupar hallazgos en issues;
+- otro puede implementar una story resultante.
+
+El chat funciona como **blackboard**: una pizarra compartida, append-only y
+exportable, donde las contribuciones quedan como evidencia del proceso.
 
 ## Capacidades de pi relevantes
 
@@ -33,197 +35,173 @@ Según la documentación de pi:
 - Las extensiones pueden usar un event bus compartido o archivos para coordinar
   con sistemas externos.
 
-## Tres niveles de demo posibles
+## Patrón elegido: Chat-as-Blackboard
 
-### Nivel 1: tmux como orquestador humano
-
-Es el patrón que ya usamos:
-
-- Crear worktrees separados.
-- Abrir una ventana `tmux` por agente.
-- Dar roles diferentes: producto, dominio, UX, evaluator.
-- El humano copia/sintetiza salidas o un coordinador las lee desde archivos.
-
-Ventajas:
-
-- Muy simple.
-- No requiere código nuevo.
-- Ideal para enseñar el patrón operativo real.
-
-Limitaciones:
-
-- Los agentes no se hablan directamente; el humano coordina.
-- Difícil reproducir una conversación cerrada como demo automática.
-
-### Nivel 2: orquestador RPC externo
-
-Crear un script, por ejemplo `scripts/pi-roundtable-demo.mjs`, que:
-
-1. Spawnea varios procesos:
-
-   ```sh
-   pi --mode rpc --no-session --tools read,grep,find,ls \
-     --system-prompt "Sos agente Producto..."
-   ```
-
-2. Envía un prompt inicial a cada agente.
-3. Captura texto por eventos `message_update` hasta `agent_end`.
-4. Agrega cada respuesta a un transcript compartido.
-5. Pasa el transcript al siguiente agente.
-6. Pide a un moderador una síntesis final.
-
-Ventajas:
-
-- Demo reproducible.
-- Los agentes conversan de verdad mediante transcript.
-- Se puede limitar a herramientas read-only para seguridad.
-- Funciona fuera de pi interactivo y puede grabarse fácilmente.
-
-Limitaciones:
-
-- Hay que manejar procesos, JSONL y errores.
-- Consume más tokens porque replica transcript en varias sesiones.
-
-### Nivel 3: extensión `/roundtable` dentro de pi
-
-Crear una extensión project-local `.pi/extensions/roundtable.ts` con un comando:
+En vez de hacer que los agentes conversen en un transcript externo, hacemos que
+usen el producto:
 
 ```text
-/roundtable "Objetivo: proponer próximas stories"
+pi agent A -> clojure -M:chat send roundtable agent-a "..."
+pi agent B -> clojure -M:chat show roundtable agent-b
+pi agent B -> clojure -M:chat send roundtable agent-b "..."
+pi agent C -> clojure -M:chat export roundtable agent-c --output ...
 ```
 
-La extensión podría:
+Esto prueba dos cosas a la vez:
 
-- Crear sesiones SDK en memoria para roles `producto`, `dominio`, `ux` y
-  `moderador`.
-- Mostrar estado en la UI de pi con `ctx.ui.setWidget`.
-- Guardar transcript en `docs/ideas/roundtable-YYYY-MM-DD.md`.
-- Opcionalmente crear issues con confirmación humana.
+1. La capacidad de pi para orquestar agentes.
+2. La utilidad y los límites reales del chat Markdown que estamos construyendo.
 
-Ventajas:
+## Roles emergentes, no asignados
 
-- Demo integrada en pi.
-- Se ve como una feature propia del harness.
-- Puede evolucionar a herramienta diaria de backlog gardening.
-
-Limitaciones:
-
-- Más compleja.
-- Las extensiones corren con permisos completos; hay que mantener controles.
-- Conviene empezar con RPC/script antes de convertirlo en extensión.
-
-## Recomendación
-
-Para una demo próxima, usar **Nivel 2: orquestador RPC externo**.
-
-Razones:
-
-- Es suficientemente automático para demostrar conversación entre agentes.
-- No requiere meterse todavía en UI de extensiones.
-- Se puede versionar como script reproducible.
-- Permite ejecutar agentes con herramientas read-only.
-- Encaja con nuestro patrón: discovery/refinement antes de implementación.
-
-Luego, si la demo resulta útil, convertirla en extensión `/roundtable`.
-
-## Diseño de la demo RPC
-
-### Roles
-
-- `moderador`: define agenda, hace preguntas y sintetiza.
-- `producto`: busca valor, demo y slicing de usuario.
-- `dominio`: busca reglas, invariantes, riesgos de datos y TDD.
-- `ux-seguridad`: busca feedback CLI, errores, seguridad Markdown y edge cases.
-
-### Flujo mínimo
+Para evitar conversaciones artificiales, el prompt de cada agente debería decir:
 
 ```text
-turno 0: moderador presenta objetivo
-turno 1: producto responde
-turno 2: dominio responde viendo producto
-turno 3: ux-seguridad responde viendo producto + dominio
-turno 4: moderador sintetiza 3-5 issues candidatas
+Usá el chat compartido para colaborar. No tenés un rol fijo. Durante la
+conversación podés actuar como producto, dominio, UX, seguridad, tester,
+backlog gardener o implementador según lo que veas. Leé la sala antes de
+responder. Si encontrás fricción usando la CLI, registrala como hallazgo.
+Si ves una mejora accionable, proponé story con criterios y primer test rojo.
 ```
 
-### Contrato de salida
+Los roles se vuelven etiquetas dentro de los mensajes, no identidades fijas:
 
-El moderador final debe producir Markdown con:
+```md
+### Hallazgo UX
 
-- Decisiones principales.
-- Issues candidatas con historia, criterios y primer test rojo sugerido.
-- Riesgos de conflicto por archivo.
-- Recomendación de dos implementadores + un evaluator.
+El error de overwrite no dice cómo recuperarme.
 
-### Seguridad
+### Propuesta de test rojo
 
-Para la primera demo:
-
-- Usar `--tools read,grep,find,ls` o `--no-tools`.
-- No permitir `bash`, `edit` ni `write` a los agentes participantes.
-- El script escribe el transcript, no los agentes.
-- No crear issues automáticamente; solo proponer.
-
-## Sketch técnico RPC
-
-```js
-import { spawn } from "node:child_process";
-
-function startAgent(name, systemPrompt) {
-  const proc = spawn("pi", [
-    "--mode", "rpc",
-    "--no-session",
-    "--tools", "read,grep,find,ls",
-    "--system-prompt", systemPrompt,
-  ]);
-
-  return {
-    name,
-    prompt(message) {
-      proc.stdin.write(JSON.stringify({ type: "prompt", message }) + "\n");
-      return collectUntilAgentEnd(proc.stdout);
-    },
-    stop() {
-      proc.kill();
-    },
-  };
-}
+Dado un archivo existente, `export --output` falla y sugiere `--force`.
 ```
 
-Puntos importantes del protocolo:
+## Flujo de demo mínimo
 
-- Leer stdout como JSONL separado estrictamente por `\n`.
-- Acumular `message_update` con `assistantMessageEvent.type == "text_delta"`.
-- Considerar terminada una respuesta cuando llega `agent_end`.
-- Correlacionar errores con eventos y respuestas `success: false`.
+### 1. Preparar estado aislado
+
+Usar un state file dedicado para la demo:
+
+```sh
+export PI_CHAT_STATE_FILE=.demo/agent-roundtable.edn
+rm -f "$PI_CHAT_STATE_FILE"
+```
+
+### 2. Crear usuarios y sala
+
+```sh
+clojure -M:chat create-user agent-a
+clojure -M:chat create-user agent-b
+clojure -M:chat create-user agent-c
+clojure -M:chat create-room roundtable
+clojure -M:chat join roundtable agent-a
+clojure -M:chat join roundtable agent-b
+clojure -M:chat join roundtable agent-c
+```
+
+### 3. Lanzar agentes pi en tmux
+
+Cada agente corre en su propio pane/window, con el mismo `PI_CHAT_STATE_FILE` y
+un prompt que lo obliga a usar la CLI del producto para hablar:
+
+```text
+Antes de responder, ejecutá `clojure -M:chat show roundtable <tu-handle>`.
+Para hablar, usá `clojure -M:chat send roundtable <tu-handle> "..." <txn-id>`.
+Registrá hallazgos, propuestas, tests rojos y dudas en la sala.
+No edites código salvo que una story sea explícitamente asignada.
+```
+
+### 4. Conversación colaborativa
+
+Los agentes alternan:
+
+- leer sala;
+- probar comandos reales;
+- enviar hallazgos;
+- proponer mejoras;
+- agrupar consenso;
+- detectar qué story conviene implementar.
+
+El orquestador puede serializar turnos para evitar escrituras concurrentes sobre
+el EDN en la primera versión.
+
+### 5. Exportar evidencia
+
+```sh
+clojure -M:chat export roundtable agent-a \
+  --output docs/ideas/agent-roundtable-demo.md \
+  --force
+```
+
+La exportación se vuelve el artefacto de discovery.
+
+### 6. Crear issues y ejecutar
+
+Un agente backlog gardener lee el export y crea issues concretas:
+
+- historia;
+- criterios de aceptación;
+- fuera de alcance;
+- primer test rojo sugerido;
+- riesgo de conflicto.
+
+Luego volvemos al patrón operativo:
+
+- dos implementadores;
+- un evaluator/backlog gardener;
+- worktrees separados;
+- TDD estricto;
+- checks y merge fast-forward.
+
+## Fricciones esperadas que la demo puede descubrir
+
+- Estado EDN compartido sin lock para escrituras concurrentes.
+- Falta de comandos cómodos para listar historial con filtros.
+- Mensajes largos difíciles de escribir por CLI.
+- Necesidad de `reply`, `tag`, `decision` o `finding`.
+- Exportación útil pero quizá demasiado verbosa para discovery.
+- Falta de comando para convertir hallazgos en issues.
+- Necesidad de sala de sistema o mensajes de agente con metadata.
+
+## Seguridad y límites
+
+Para el primer corte:
+
+- Los agentes pueden usar `bash` para invocar la CLI, pero se les prohíbe editar
+  código durante la fase de conversación.
+- El orquestador controla turnos para evitar escrituras simultáneas.
+- No se crean issues automáticamente sin confirmación humana.
+- Cada mensaje usa `client-txn-id` único y estable.
+- El estado de demo vive en `.demo/`, no en datos reales.
 
 ## Story sugerida
 
-**Título**: Como mantenedor, quiero una demo roundtable de agentes pi para
-proponer backlog colaborativamente.
+**Título**: Como mantenedor, quiero una demo dogfood donde agentes usen el chat
+por CLI para descubrir backlog.
 
 **Criterios de aceptación**:
 
-- `scripts/pi-roundtable-demo.mjs` ejecuta una conversación entre al menos tres
-  roles y un moderador.
-- La demo acepta un objetivo por argumento.
-- La salida se guarda como Markdown en `docs/ideas/roundtable-demo.md` o una ruta
-  indicada.
-- Los agentes participantes corren sin herramientas de escritura.
-- El transcript final incluye propuestas de issues con criterios y primer test
-  rojo sugerido.
-- El script falla con mensaje claro si `pi` no está disponible o si un agente no
-  responde.
+- Un script crea un estado aislado en `.demo/agent-roundtable.edn`.
+- El script crea al menos tres usuarios agente y una sala compartida.
+- La demo lanza o documenta cómo lanzar agentes pi que leen y escriben en la sala
+  usando la CLI real.
+- La conversación se exporta a Markdown.
+- El transcript incluye hallazgos, propuestas de mejora y al menos una story
+  candidata con primer test rojo sugerido.
+- La demo evita escrituras concurrentes o documenta el riesgo explícitamente.
+- No crea issues automáticamente en el primer corte.
 
 **Primer test rojo sugerido**:
 
-Probar una función pura de formateo de transcript que recibe turnos
-`[{role, content}]` y produce Markdown estable con secciones por rol. Luego
-integrar el runner RPC detrás de una frontera testeable.
+Probar una función pura que genere el script de bootstrap o el plan de turnos de
+la roundtable. En un segundo paso, probar un script `--dry-run` que produzca un
+transcript Markdown fixture sin llamar a modelos.
 
 ## Evolución posterior
 
-1. Convertir el script en comando `bb`/npm si se usa mucho.
-2. Agregar `--dry-run` con respuestas fixture para demos sin gastar tokens.
-3. Crear extensión `/roundtable` que use SDK o RPC y muestre progreso dentro de
-   pi.
-4. Agregar confirmación humana para convertir propuestas en GitHub Issues.
+1. Agregar comando de demo reproducible con `--dry-run` y fixtures.
+2. Agregar orquestación RPC para turnos automáticos.
+3. Convertir hallazgos del export en borradores de issues con confirmación.
+4. Crear extensión pi `/dogfood-roundtable`.
+5. Usar el propio chat como memoria de coordinación de agentes durante
+   implementación real.

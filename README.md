@@ -164,8 +164,15 @@ Para auditar reintentos o duplicados sin cambiar la salida Markdown por defecto,
 clojure -M:chat show general andres --with-meta
 ```
 
-La vista incluye orden, autor, timestamp y `client-txn-id` cuando está
-registrado.
+También se puede exportar un transcript auditable sin cambiar el formato por
+defecto:
+
+```sh
+clojure -M:chat export general andres --with-meta --output general-audit.md
+```
+
+La vista y el export auditable incluyen orden, autor, timestamp y
+`client-txn-id` cuando está registrado.
 
 Demo reproducible del flujo completo:
 [`docs/demo-export-chat.md`](docs/demo-export-chat.md).

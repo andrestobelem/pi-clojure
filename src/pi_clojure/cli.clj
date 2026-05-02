@@ -84,13 +84,16 @@
 
 (defn export-options [args]
   (loop [remaining args
-         options {:force? false}]
+         options {:force? false
+                  :with-meta? false}]
     (case (first remaining)
       nil options
       "--output" (recur (nnext remaining)
                          (assoc options :output (second remaining)))
       "--force" (recur (next remaining)
                         (assoc options :force? true))
+      "--with-meta" (recur (next remaining)
+                            (assoc options :with-meta? true))
       (throw (ex-info "opción de exportación desconocida"
                       {:option (first remaining)})))))
 
@@ -193,8 +196,11 @@
     (let [[room-name handle & option-args] args
           user (require-user store handle)
           room (require-room store room-name)
-          {:keys [output force?]} (export-options option-args)
-          markdown (chat/export-room-markdown store (:user/id user) (:room/id room))]
+          {:keys [output force? with-meta?]} (export-options option-args)
+          markdown ((if with-meta?
+                      chat/export-room-markdown-with-meta
+                      chat/export-room-markdown)
+                    store (:user/id user) (:room/id room))]
       (if output
         (do
           (write-export-file! output markdown force?)

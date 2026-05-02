@@ -286,6 +286,16 @@
        "Autor: " (export-author-label store (:message/author-id message)) "\n\n"
        (:message/body-markdown message)))
 
+(defn export-message-markdown-with-meta [store message]
+  (str "### Mensaje " (:message/sequence message) "\n\n"
+       "Autor: " (export-author-label store (:message/author-id message)) "\n"
+       "Orden: " (:message/sequence message) "\n"
+       "timestamp: " (:message/created-at message) "\n"
+       (when-let [client-txn-id (:message/client-txn-id message)]
+         (str "client-txn-id: " client-txn-id "\n"))
+       "\n"
+       (:message/body-markdown message)))
+
 (defn require-export-access! [store user-id room-id]
   (when-not (active-participant? store user-id room-id)
     (throw (ex-info "room export access denied"
@@ -294,8 +304,7 @@
                      :user-id user-id
                      :room-id room-id}))))
 
-(defn export-room-markdown [store user-id room-id]
-  (require-export-access! store user-id room-id)
+(defn export-room-markdown* [store room-id format-message]
   (let [room (find-room store room-id)
         messages (->> (messages-in-room store room-id)
                       (sort-by :message/sequence))]
@@ -303,8 +312,16 @@
          "Tipo: " (export-room-type-label room) "\n\n"
          "## Mensajes\n\n"
          (str/join "\n\n"
-                   (map #(export-message-markdown store %) messages))
+                   (map #(format-message store %) messages))
          "\n")))
+
+(defn export-room-markdown [store user-id room-id]
+  (require-export-access! store user-id room-id)
+  (export-room-markdown* store room-id export-message-markdown))
+
+(defn export-room-markdown-with-meta [store user-id room-id]
+  (require-export-access! store user-id room-id)
+  (export-room-markdown* store room-id export-message-markdown-with-meta))
 
 (defn last-message-sequence [store room-id]
   (reduce max 0 (map :message/sequence (messages-in-room store room-id))))

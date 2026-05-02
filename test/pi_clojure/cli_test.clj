@@ -101,6 +101,30 @@
              (run! state-file "show" "general" "andres")))
       (io/delete-file state-file true))))
 
+(deftest export-room-with-message-metadata
+  (testing "given messages with known client txn ids, when exporting with metadata, then audit fields are visible without losing Markdown"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "andres")
+      (run! state-file "send" "general" "andres" "### Decisión\n\nUsar **Markdown**\n\n- mantener formato" "client-txn-1")
+      (run! state-file "send" "general" "andres" "Segundo con `código`" "client-txn-2")
+      (let [exported (run! state-file "export" "general" "andres" "--with-meta")]
+        (is (str/includes? exported "# General"))
+        (is (str/includes? exported "Tipo: shared"))
+        (is (str/includes? exported "### Mensaje 1"))
+        (is (str/includes? exported "Autor: andres"))
+        (is (str/includes? exported "Orden: 1"))
+        (is (str/includes? exported "client-txn-id: client-txn-1"))
+        (is (str/includes? exported "client-txn-id: client-txn-2"))
+        (is (re-find #"timestamp: .+" exported))
+        (is (str/includes? exported "### Decisión\n\nUsar **Markdown**\n\n- mantener formato"))
+        (is (< (str/index-of exported "client-txn-1")
+               (str/index-of exported "client-txn-2"))))
+      (is (not (str/includes? (run! state-file "export" "general" "andres")
+                              "client-txn-id")))
+      (io/delete-file state-file true))))
+
 (deftest export-room-to-markdown-file
   (testing "given an output path, when exporting a room, then it writes the same Markdown as stdout and confirms the export"
     (let [state-file (temp-state-file)

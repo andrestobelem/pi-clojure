@@ -2,6 +2,7 @@
 
 ## Índice
 
+- [`2026-05-01-agent-patterns-backlog-and-implementation.md`](2026-05-01-agent-patterns-backlog-and-implementation.md): patrones de agentes para backlog e implementación.
 - [`2026-05-01-domain-decisions.md`](2026-05-01-domain-decisions.md): decisiones iniciales durables del dominio.
 - [`2026-05-01-github-project-canvas.md`](2026-05-01-github-project-canvas.md): decisión para usar GitHub Project como canvas del MVP.
 - [`2026-05-01-pairing-tdd-reset.md`](2026-05-01-pairing-tdd-reset.md): procedimiento para reiniciar implementación y trabajar en Pair Programming con TDD.

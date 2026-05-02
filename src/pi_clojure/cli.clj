@@ -3,6 +3,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [pi-clojure.audit-cycle :as audit-cycle]
             [pi-clojure.domain.markdown :as markdown]
             [pi-clojure.domain.user :as chat])
   (:import [java.nio.channels FileChannel OverlappingFileLockException]
@@ -204,6 +205,10 @@
 (defn write-command? [command]
   (contains? write-commands command))
 
+(defn persistent-command? [command]
+  (and (write-command? command)
+       (not= "audit-cycle" command)))
+
 (defn warning-field-name [warning]
   (when-let [path (first (:warning/path warning))]
     (str (namespace path) "." (name path))))
@@ -375,8 +380,11 @@
 (defn main-status! [state-file args]
   (let [[command & command-args] args]
     (try
-      (apply run! state-file command command-args)
-      0
+      (if (= "audit-cycle" command)
+        (audit-cycle/main-status! command-args)
+        (do
+          (apply run! state-file command command-args)
+          0))
       (catch clojure.lang.ExceptionInfo ex
         (print-actionable-error! ex)
         1))))

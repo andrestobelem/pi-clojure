@@ -134,6 +134,19 @@ Más detalles: [`docs/research/2026-05-01-parallel-pi-workflow.md`](docs/researc
 Checklist operativo reusable para intake, TDD, integración, cierre y limpieza:
 [`docs/multi-agent-cycle-checklist.md`](docs/multi-agent-cycle-checklist.md).
 
+Antes de iniciar, pausar o cerrar historias, correr una auditoría local de
+coherencia entre issues abiertas, Project y worktrees:
+
+```sh
+clojure -M:chat audit-cycle
+```
+
+El comando es de solo lectura: lista cada issue abierta con `Status`, `Foco`,
+branch/worktree local si existe y estado git resumido. Devuelve exit code `1`
+si detecta saturación de `In Progress`/`Foco: Ahora`, una historia activa sin
+worktree local, cambios pendientes, conflictos `UU` o branch de story no
+alineada con el issue esperado.
+
 ## Gestión de proyecto
 
 Usamos GitHub Issues para tareas concretas y milestones para agrupar objetivos.

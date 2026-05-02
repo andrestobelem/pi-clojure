@@ -261,17 +261,31 @@
        (sort-by :message/sequence)
        vec))
 
+(defn export-room-type-label [room]
+  (case (:room/type room)
+    :room.type/user "personal"
+    :room.type/shared "shared"))
+
+(defn export-author-label [store author-id]
+  (let [author (find-by-id store author-id)]
+    (str (:user/handle author)
+         (when (= :user.type/agent (:user/type author))
+           " (agent)"))))
+
+(defn export-message-markdown [store message]
+  (str "### Mensaje " (:message/sequence message) "\n\n"
+       "Autor: " (export-author-label store (:message/author-id message)) "\n\n"
+       (:message/body-markdown message)))
+
 (defn export-room-markdown [store room-id]
   (let [room (find-room store room-id)
         messages (->> (messages-in-room store room-id)
                       (sort-by :message/sequence))]
     (str "# " (:room/title room) "\n\n"
+         "Tipo: " (export-room-type-label room) "\n\n"
          "## Mensajes\n\n"
          (str/join "\n\n"
-                   (map (fn [message]
-                          (str "### Mensaje " (:message/sequence message) "\n\n"
-                               (:message/body-markdown message)))
-                        messages))
+                   (map #(export-message-markdown store %) messages))
          "\n")))
 
 (defn next-message-sequence [store room-id]

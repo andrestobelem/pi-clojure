@@ -51,7 +51,12 @@
              (run! state-file "send" "general" "andres" "Hola **mundo**" "client-txn-1")))
       (is (= "# General\n\n## Mensajes\n\n1. andres: Hola **mundo**\n"
              (run! state-file "show" "general" "andres")))
-      (is (= "# General\n\n## Mensajes\n\n### Mensaje 1\n\nHola **mundo**\n"
+      (is (= (str "# General\n\n"
+                  "Tipo: shared\n\n"
+                  "## Mensajes\n\n"
+                  "### Mensaje 1\n\n"
+                  "Autor: andres\n\n"
+                  "Hola **mundo**\n")
              (run! state-file "export" "general" "andres")))
       (is (= "andres salió de general\n"
              (run! state-file "leave" "general" "andres")))
@@ -141,7 +146,7 @@
         (is (str/includes? err "Campo: message.body")))
       (is (= "# General\n\n## Mensajes\n\n\n"
              (run! state-file "show" "general" "andres")))
-      (is (= "# General\n\n## Mensajes\n\n\n"
+      (is (= "# General\n\nTipo: shared\n\n## Mensajes\n\n\n"
              (run! state-file "export" "general" "andres")))
       (io/delete-file state-file true)))
 

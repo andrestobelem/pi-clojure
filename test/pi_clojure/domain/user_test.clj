@@ -456,21 +456,52 @@
              (user/list-active-participants store (:room/id personal-room)))))))
 
 (deftest export-room-as-markdown
-  (testing "given out-of-order messages, when anyone exports a room, then it includes the title and ordered original Markdown"
+  (testing "given out-of-order messages, when anyone exports a shared room, then it includes room metadata, author handles and ordered original Markdown"
     (let [store (user/create-store)
-          created-user (user/create-user! store "andres" :user.type/human)
-          shared-room (user/create-shared-room! store "General")]
-      (user/add-message! store (:room/id shared-room) (:user/id created-user) 2 "Segundo con `código`")
-      (user/add-message! store (:room/id shared-room) (:user/id created-user) 1 "Primero **fuerte**")
-      (is (= "# General\n\n## Mensajes\n\n### Mensaje 1\n\nPrimero **fuerte**\n\n### Mensaje 2\n\nSegundo con `código`\n"
+          andres (user/create-user! store "andres" :user.type/human)
+          bot (user/create-user! store "bot" :user.type/agent)
+          shared-room (user/create-shared-room! store "General")
+          markdown-body "Primero **fuerte**\n\n- item\n\n```clojure\n(+ 1 2)\n```"]
+      (user/add-message! store (:room/id shared-room) (:user/id bot) 2 "Segundo con `código`")
+      (user/add-message! store (:room/id shared-room) (:user/id andres) 1 markdown-body)
+      (is (= (str "# General\n\n"
+                  "Tipo: shared\n\n"
+                  "## Mensajes\n\n"
+                  "### Mensaje 1\n\n"
+                  "Autor: andres\n\n"
+                  markdown-body "\n\n"
+                  "### Mensaje 2\n\n"
+                  "Autor: bot (agent)\n\n"
+                  "Segundo con `código`\n")
              (user/export-room-markdown store (:room/id shared-room))))))
 
-  (testing "given a user who is not an active participant, when exporting a room, then export is allowed"
+  (testing "given a personal room, when exporting, then it includes a stable personal room type"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          personal-room (user/find-personal-room-by-owner store (:user/id andres))]
+      (user/add-message! store (:room/id personal-room) (:user/id andres) 1 "Nota personal")
+      (is (= (str "# andres\n\n"
+                  "Tipo: personal\n\n"
+                  "## Mensajes\n\n"
+                  "### Mensaje 1\n\n"
+                  "Autor: andres\n\n"
+                  "Nota personal\n")
+             (user/export-room-markdown store (:room/id personal-room))))))
+
+  (testing "given participation events in the room, when exporting, then only chat messages appear and output is deterministic"
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)
           shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (user/leave-room! store (:user/id created-user) (:room/id shared-room))
       (user/add-message! store (:room/id shared-room) (:user/id created-user) 1 "Público")
-      (is (= "# General\n\n## Mensajes\n\n### Mensaje 1\n\nPúblico\n"
+      (is (= (str "# General\n\n"
+                  "Tipo: shared\n\n"
+                  "## Mensajes\n\n"
+                  "### Mensaje 1\n\n"
+                  "Autor: andres\n\n"
+                  "Público\n")
+             (user/export-room-markdown store (:room/id shared-room))
              (user/export-room-markdown store (:room/id shared-room)))))))
 
 (deftest list-users-in-store

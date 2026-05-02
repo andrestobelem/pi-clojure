@@ -209,11 +209,19 @@
                   :room-id room-id
                   :active? false})
 
+(def room-access-denied-message
+  "Para acceder a la sala primero tenés que unirte con join")
+
+(def room-access-denied-data
+  {:error/type :room/access-denied
+   :error/path [:room/access]})
+
 (defn require-active-participant! [store user-id room-id]
   (when-not (active-participant? store user-id room-id)
-    (throw (ex-info "active participation required"
-                    {:user-id user-id
-                     :room-id room-id}))))
+    (throw (ex-info room-access-denied-message
+                    (assoc room-access-denied-data
+                           :user-id user-id
+                           :room-id room-id)))))
 
 (defn messages-in-room [store room-id]
   (get-in @store [:messages/by-room-id room-id] []))
@@ -298,11 +306,10 @@
 
 (defn require-export-access! [store user-id room-id]
   (when-not (active-participant? store user-id room-id)
-    (throw (ex-info "room export access denied"
-                    {:error/type :room/access-denied
-                     :error/path [:room/access]
-                     :user-id user-id
-                     :room-id room-id}))))
+    (throw (ex-info room-access-denied-message
+                    (assoc room-access-denied-data
+                           :user-id user-id
+                           :room-id room-id)))))
 
 (defn export-room-markdown* [store room-id format-message]
   (let [room (find-room store room-id)

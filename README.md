@@ -153,6 +153,18 @@ Procedimiento de trabajo:
 
 - [`docs/research/2026-05-01-pairing-tdd-reset.md`](docs/research/2026-05-01-pairing-tdd-reset.md)
 
+Para participar en una sala compartida, primero hay que ejecutar `chat join`.
+Los comandos que escriben o leen contenido de sala (`send`, `show` y `export`)
+rechazan usuarios que existen pero no se unieron explícitamente, sin mostrar
+mensajes ni participantes de la sala.
+
+```sh
+clojure -M:chat join general andres
+clojure -M:chat send general andres "Hola **mundo**" client-txn-1
+clojure -M:chat show general andres
+clojure -M:chat export general andres
+```
+
 Para que un reintento no duplique mensajes, `chat send` acepta un
 `client-txn-id` estable como quinto argumento. Repetir el mismo
 `author-id + client-txn-id` devuelve el mismo mensaje lógico.

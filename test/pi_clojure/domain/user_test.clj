@@ -443,12 +443,18 @@
     (let [store (user/create-store)
           created-user (user/create-user! store "andres" :user.type/human)
           shared-room (user/create-shared-room! store "General")]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"active participation required"
-                            (user/read-room store (:user/id created-user) (:room/id shared-room))))
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"active participation required"
-                            (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola")))))
+      (doseq [operation [(fn [] (user/read-room store (:user/id created-user) (:room/id shared-room)))
+                         (fn [] (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola"))]]
+        (try
+          (operation)
+          (is false "expected access denied")
+          (catch clojure.lang.ExceptionInfo ex
+            (is (= "Para acceder a la sala primero tenés que unirte con join" (ex-message ex)))
+            (is (= {:error/type :room/access-denied
+                    :error/path [:room/access]
+                    :user-id (:user/id created-user)
+                    :room-id (:room/id shared-room)}
+                   (ex-data ex))))))))
 
   (testing "given an active participant, when leaving and rejoining, then access follows active participation"
     (let [store (user/create-store)
@@ -458,7 +464,7 @@
       (user/leave-room! store (:user/id created-user) (:room/id shared-room))
       (is (not (user/active-participant? store (:user/id created-user) (:room/id shared-room))))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"active participation required"
+                            #"Para acceder a la sala primero tenés que unirte con join"
                             (user/read-room store (:user/id created-user) (:room/id shared-room))))
       (user/join-room! store (:user/id created-user) (:room/id shared-room))
       (is (= []
@@ -587,7 +593,7 @@
         (user/export-room-markdown store (:user/id zoe) (:room/id shared-room))
         (is false "expected access denied")
         (catch clojure.lang.ExceptionInfo ex
-          (is (= "room export access denied" (ex-message ex)))
+          (is (= "Para acceder a la sala primero tenés que unirte con join" (ex-message ex)))
           (is (= {:error/type :room/access-denied
                   :error/path [:room/access]
                   :user-id (:user/id zoe)
@@ -600,7 +606,7 @@
           zoe (user/create-user! store "zoe" :user.type/human)
           personal-room (user/find-personal-room-by-owner store (:user/id andres))]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"room export access denied"
+                            #"Para acceder a la sala primero tenés que unirte con join"
                             (user/export-room-markdown store (:user/id zoe) (:room/id personal-room)))))))
 
 (deftest list-users-in-store

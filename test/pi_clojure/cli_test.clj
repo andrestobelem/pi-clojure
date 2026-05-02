@@ -337,19 +337,37 @@
              (run-main-status! state-file "join" "random" "andres")))
       (io/delete-file state-file true)))
 
-  (testing "given a non participant, when exporting from the binary entrypoint, then the CLI prints an access error"
-    (let [state-file (temp-state-file)]
-      (run! state-file "create-user" "andres")
-      (run! state-file "create-user" "zoe")
+  (testing "given an existing user who did not join a room with sensitive content, when using send/show/export, then access is denied safely"
+    (let [state-file (temp-state-file)
+          sensitive-body "Secreto de sala: token-123"
+          denied-send (delay (run-main-status! state-file
+                                               "send"
+                                               "general"
+                                               "mallory"
+                                               "Intento de intrusión"
+                                               "txn-mallory-1"))
+          denied-show (delay (run-main-status! state-file
+                                               "show"
+                                               "general"
+                                               "mallory"))
+          denied-export (delay (run-main-status! state-file
+                                                 "export"
+                                                 "general"
+                                                 "mallory"))]
+      (run! state-file "create-user" "alice")
+      (run! state-file "create-user" "mallory")
       (run! state-file "create-room" "general")
-      (run! state-file "join" "general" "andres")
-      (let [{:keys [exit-code out err]} (run-main-status! state-file
-                                                          "export"
-                                                          "general"
-                                                          "zoe")]
+      (run! state-file "join" "general" "alice")
+      (run! state-file "send" "general" "alice" sensitive-body "txn-alice-1")
+      (doseq [{:keys [exit-code out err]} [@denied-send @denied-show @denied-export]]
         (is (= 1 exit-code))
         (is (= "" out))
-        (is (str/includes? err "Error: room export access denied"))
+        (is (str/includes? err "Error: Para acceder a la sala primero tenés que unirte con join"))
         (is (str/includes? err "Código: room/access-denied"))
-        (is (str/includes? err "Campo: room.access")))
+        (is (str/includes? err "Campo: room.access"))
+        (is (not (str/includes? err sensitive-body)))
+        (is (not (str/includes? err "alice")))
+        (is (not (str/includes? err "Intento de intrusión"))))
+      (is (= (str "# General\n\n## Mensajes\n\n1. alice: " sensitive-body "\n")
+             (run! state-file "show" "general" "alice")))
       (io/delete-file state-file true))))

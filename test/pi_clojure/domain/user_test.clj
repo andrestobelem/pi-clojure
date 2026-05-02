@@ -1,6 +1,7 @@
 (ns pi-clojure.domain.user-test
   (:require [clojure.spec.alpha :as s]
             [clojure.test :refer [deftest is testing]]
+            [pi-clojure.domain.markdown :as markdown]
             [pi-clojure.domain.user :as user]))
 
 (defn expected-participation-event [room user event-type]
@@ -301,6 +302,36 @@
                        :sequence 1
                        :body-markdown "Hola **mundo**"}
              (user/send-message! store (:user/id created-user) (:room/id shared-room) "Hola **mundo**")))))
+
+  (testing "given an active participant, when sending a message with only warnings, then it persists the message and includes stable warnings"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (let [message (user/send-message! store
+                                        (:user/id created-user)
+                                        (:room/id shared-room)
+                                        "```
+(+ 1 1)
+```")]
+        (is (= [{:warning/type :markdown/code-block-without-language
+                 :warning/severity :warning.severity/info
+                 :warning/path [:message/body]}]
+               (:message/warnings message)))
+        (is (= [message]
+               (user/read-room store (:user/id created-user) (:room/id shared-room)))))))
+
+  (testing "given an active participant, when sending a message that exceeds the hard limit, then it is blocked"
+    (let [store (user/create-store)
+          created-user (user/create-user! store "andres" :user.type/human)
+          shared-room (user/create-shared-room! store "General")
+          too-long (apply str (repeat (inc markdown/max-message-markdown-length) "a"))]
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"El mensaje no puede superar"
+                            (user/send-message! store (:user/id created-user) (:room/id shared-room) too-long)))
+      (is (= []
+             (user/read-room store (:user/id created-user) (:room/id shared-room))))))
 
   (testing "given an active participant, when sending a message, then a message-created event is recorded"
     (let [store (user/create-store)

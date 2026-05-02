@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]))
 
 (def max-message-markdown-length 4000)
+(def readability-message-markdown-length 1200)
 
 (def raw-html-pattern #"(?is)<!--.*?-->|<\s*/?\s*[a-z][^>]*>")
 (def markdown-image-pattern #"!\[[^\]]*\]\(")
@@ -66,6 +67,49 @@
 (defn contains-unsafe-link? [body-markdown]
   (boolean (some (complement safe-link-destination?)
                  (link-destinations body-markdown))))
+
+(defn code-fence-line? [line]
+  (str/starts-with? (str/trim line) "```"))
+
+(defn code-fence-without-language-line? [line]
+  (= "```" (str/trim line)))
+
+(defn contains-code-block-without-language? [body-markdown]
+  (loop [[line & remaining] (str/split-lines body-markdown)
+         inside-code-block? false]
+    (cond
+      (nil? line) false
+      (and (not inside-code-block?)
+           (code-fence-without-language-line? line)) true
+      (code-fence-line? line) (recur remaining (not inside-code-block?))
+      :else (recur remaining inside-code-block?))))
+
+(defn very-long-readable-message? [body-markdown]
+  (<= readability-message-markdown-length
+      (count body-markdown)
+      max-message-markdown-length))
+
+(defn code-block-without-language-warning []
+  #:warning{:type :markdown/code-block-without-language
+            :severity :warning.severity/info
+            :path [:message/body]})
+
+(defn very-long-warning [body-markdown]
+  #:warning{:type :markdown/very-long
+            :severity :warning.severity/info
+            :path [:message/body]
+            :limit readability-message-markdown-length
+            :actual (count body-markdown)})
+
+(defn lint-message-markdown [body-markdown]
+  (cond-> []
+    (and (string? body-markdown)
+         (contains-code-block-without-language? body-markdown))
+    (conj (code-block-without-language-warning))
+
+    (and (string? body-markdown)
+         (very-long-readable-message? body-markdown))
+    (conj (very-long-warning body-markdown))))
 
 (defn validation-errors [body-markdown]
   (cond-> []

@@ -82,6 +82,26 @@
 (defn persistent-command? [command]
   (not= "validate-markdown" command))
 
+(defn warning-field-name [warning]
+  (when-let [path (first (:warning/path warning))]
+    (str (namespace path) "." (name path))))
+
+(defn warning-message [warning]
+  (case (:warning/type warning)
+    :markdown/code-block-without-language "bloque de código sin lenguaje"
+    :markdown/very-long "mensaje muy largo"
+    "advertencia de legibilidad"))
+
+(defn format-warning [warning]
+  (str "Advertencia: "
+       (warning-message warning)
+       (when-let [field (warning-field-name warning)]
+         (str " en " field))))
+
+(defn print-warnings! [warnings]
+  (doseq [warning warnings]
+    (println (format-warning warning))))
+
 (defn run-command! [store command args]
   (case command
     "validate-markdown"
@@ -108,9 +128,10 @@
     "send"
     (let [[room-name handle body-markdown client-txn-id] args
           user (require-user store handle)
-          room (require-room store room-name)]
-      (chat/send-message! store (:user/id user) (:room/id room) body-markdown client-txn-id)
-      (println (str "Mensaje enviado a " room-name " por " handle)))
+          room (require-room store room-name)
+          message (chat/send-message! store (:user/id user) (:room/id room) body-markdown client-txn-id)]
+      (println (str "Mensaje enviado a " room-name " por " handle))
+      (print-warnings! (:message/warnings message)))
 
     "show"
     (let [[room-name handle] args

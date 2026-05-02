@@ -70,6 +70,27 @@
                               :path [:message/body]}]}
            (markdown/validate-message-markdown "![alt](https://example.com/a.png)")))))
 
+(deftest lint-message-markdown
+  (testing "given a fenced code block without language, when linting, then it returns a non-blocking warning"
+    (is (= [{:warning/type :markdown/code-block-without-language
+             :warning/severity :warning.severity/info
+             :warning/path [:message/body]}]
+           (markdown/lint-message-markdown "```
+(+ 1 1)
+```"))))
+
+  (testing "given a very long message within the hard limit, when linting and validating, then it warns without rejecting it"
+    (let [long-message (apply str (repeat markdown/readability-message-markdown-length "a"))]
+      (is (= [{:warning/type :markdown/very-long
+               :warning/severity :warning.severity/info
+               :warning/path [:message/body]
+               :warning/limit markdown/readability-message-markdown-length
+               :warning/actual (count long-message)}]
+             (markdown/lint-message-markdown long-message)))
+      (is (= {:valid? true
+              :markdown long-message}
+             (markdown/validate-message-markdown long-message))))))
+
 (deftest invalid-markdown-exceptions-are-clear
   (testing "given invalid Markdown, when requiring valid Markdown, then the exception message is understandable and data is structured"
     (try

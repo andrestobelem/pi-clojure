@@ -62,6 +62,23 @@
              (run! state-file "leave" "general" "andres")))
       (io/delete-file state-file true))))
 
+(deftest send-command-with-warnings
+  (testing "given Markdown with only lint warnings, when sending, then it persists and prints success with warnings"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "andres")
+      (is (= (str "Mensaje enviado a general por andres\n"
+                  "Advertencia: bloque de código sin lenguaje en message.body\n")
+             (run! state-file "send" "general" "andres" "```
+(+ 1 1)
+```" "client-txn-1")))
+      (is (= "# General\n\n## Mensajes\n\n1. andres: ```
+(+ 1 1)
+```\n"
+             (run! state-file "show" "general" "andres")))
+      (io/delete-file state-file true))))
+
 (deftest export-room-to-markdown-file
   (testing "given an output path, when exporting a room, then it writes the same Markdown as stdout and confirms the export"
     (let [state-file (temp-state-file)

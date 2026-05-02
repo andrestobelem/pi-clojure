@@ -222,12 +222,15 @@
 (defn find-message-by-client-txn-id [store author-id client-txn-id]
   (get-in @store [:messages/by-client-txn-id (message-txn-key author-id client-txn-id)]))
 
-(defn add-message! [store room-id author-id sequence body-markdown & [client-txn-id]]
+(defn add-message! [store room-id author-id sequence body-markdown & [client-txn-id warnings]]
   (let [message (cond-> #:message{:id (str "message:" room-id ":" sequence)
                                   :room-id room-id
                                   :author-id author-id
                                   :sequence sequence
                                   :body-markdown body-markdown}
+                  (seq warnings)
+                  (assoc :message/warnings (vec warnings))
+
                   client-txn-id
                   (assoc :message/client-txn-id client-txn-id))]
     (swap! store
@@ -302,12 +305,14 @@
 
 (defn create-message! [store user-id room-id body-markdown client-txn-id]
   (markdown/validate-message-markdown! body-markdown)
-  (let [message (add-message! store
+  (let [warnings (markdown/lint-message-markdown body-markdown)
+        message (add-message! store
                               room-id
                               user-id
                               (next-message-sequence store room-id)
                               body-markdown
-                              client-txn-id)]
+                              client-txn-id
+                              warnings)]
     (record-message-created-event! store message)
     message))
 

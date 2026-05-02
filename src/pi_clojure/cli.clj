@@ -4,7 +4,9 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [pi-clojure.domain.markdown :as markdown]
-            [pi-clojure.domain.user :as chat]))
+            [pi-clojure.domain.user :as chat])
+  (:import [java.nio.channels FileChannel OverlappingFileLockException]
+           [java.nio.file Files StandardCopyOption StandardOpenOption]))
 
 (def default-state-file ".pi-chat.edn")
 
@@ -19,7 +21,64 @@
       (chat/create-store))))
 
 (defn save-store! [state-file store]
-  (spit state-file (pr-str @store)))
+  (let [state-file (io/file state-file)
+        state-path (.toPath state-file)
+        parent (or (.getParentFile state-file)
+                   (io/file "."))
+        temp-file (java.io.File/createTempFile "pi-chat-state" ".edn.tmp" parent)
+        temp-path (.toPath temp-file)]
+    (spit temp-file (pr-str @store))
+    (try
+      (Files/move temp-path
+                  state-path
+                  (into-array StandardCopyOption
+                              [StandardCopyOption/ATOMIC_MOVE
+                               StandardCopyOption/REPLACE_EXISTING]))
+      (catch java.nio.file.AtomicMoveNotSupportedException _
+        (Files/move temp-path
+                    state-path
+                    (into-array StandardCopyOption
+                                [StandardCopyOption/REPLACE_EXISTING]))))))
+
+(def state-lock-timeout-ms 100)
+
+(defn lock-file-path [state-file]
+  (str state-file ".lock"))
+
+(defn lock-unavailable! [state-file]
+  (throw (ex-info (str "No se pudo obtener el lock del estado: " state-file)
+                  {:error/type :state/lock-unavailable
+                   :error/path [:state/lock]
+                   :state/file state-file
+                   :state/lock-file (lock-file-path state-file)})))
+
+(defn try-lock [channel]
+  (try
+    (.tryLock channel)
+    (catch OverlappingFileLockException _
+      nil)))
+
+(defn acquire-lock! [channel state-file]
+  (let [deadline (+ (System/currentTimeMillis) state-lock-timeout-ms)]
+    (loop []
+      (if-let [lock (try-lock channel)]
+        lock
+        (if (< (System/currentTimeMillis) deadline)
+          (do
+            (Thread/sleep 10)
+            (recur))
+          (lock-unavailable! state-file))))))
+
+(defn with-state-lock! [state-file f]
+  (with-open [channel (FileChannel/open (.toPath (io/file (lock-file-path state-file)))
+                                        (into-array StandardOpenOption
+                                                    [StandardOpenOption/CREATE
+                                                     StandardOpenOption/WRITE]))]
+    (let [lock (acquire-lock! channel state-file)]
+      (try
+        (f)
+        (finally
+          (.release lock))))))
 
 (defn room-title [room-name]
   (str/capitalize room-name))
@@ -139,8 +198,11 @@
       (slurp second-arg)
       first-arg)))
 
-(defn persistent-command? [command]
-  (not (contains? #{"validate-markdown" "validate-backlog-message" "help" "rooms"} command)))
+(def write-commands
+  #{"create-user" "create-room" "join" "leave" "send"})
+
+(defn write-command? [command]
+  (contains? write-commands command))
 
 (defn warning-field-name [warning]
   (when-let [path (first (:warning/path warning))]
@@ -274,10 +336,14 @@
     (throw (ex-info "comando desconocido" {:command command}))))
 
 (defn run! [state-file command & args]
-  (let [store (load-store state-file)]
-    (run-command! store command args)
-    (when (persistent-command? command)
-      (save-store! state-file store))))
+  (let [execute! (fn []
+                   (let [store (load-store state-file)]
+                     (run-command! store command args)
+                     (when (write-command? command)
+                       (save-store! state-file store))))]
+    (if (write-command? command)
+      (with-state-lock! state-file execute!)
+      (execute!))))
 
 (defn error-code [error]
   (when-let [type (:error/type error)]

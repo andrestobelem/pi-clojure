@@ -47,11 +47,16 @@ clojure -M:chat show roundtable pragmatica
 clojure -M:chat send roundtable pragmatica "<mensaje Markdown>" "<client-txn-id>"
 ```
 
-## Límite conocido
+## Concurrencia de agentes
 
-El estado EDN de la CLI no tiene locking. Para el primer corte, la demo
-serializa turnos y evita escrituras concurrentes. Si usamos agentes simultáneos,
-conviene coordinar turnos o convertir esa fricción en una story de locking.
+La CLI protege las escrituras del estado EDN con un lock por archivo
+`<PI_CHAT_STATE_FILE>.lock`. Los comandos que escriben estado (`create-user`,
+`create-room`, `join`, `leave` y `send`) serializan lectura, mutación y guardado;
+si no pueden obtener el lock, fallan con exit code no cero y un error accionable.
+
+Los agentes pueden ejecutarse en paralelo apuntando al mismo
+`PI_CHAT_STATE_FILE`. Si un agente recibe `state/lock-unavailable`, debe reintentar
+el comando completo después de un backoff corto para evitar perder mensajes.
 
 ## Salida esperada
 
@@ -67,5 +72,5 @@ La auditoría debería incluir:
 - estado aislado usado;
 - sala y participantes;
 - comandos CLI ejecutados;
-- límite de turnos seriales;
+- política de concurrencia y lock del estado;
 - fricciones observadas.

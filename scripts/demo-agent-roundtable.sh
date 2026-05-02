@@ -68,10 +68,10 @@ run_chat join roundtable pragmatica
 run_chat join roundtable esceptica
 run_chat join roundtable narradora
 
-send_roundtable pragmatica pragmatica-001 $'### Hallazgo Pragmática\n\nPodemos usar el chat como pizarra compartida si el primer corte serializa turnos y evita resolver concurrencia todavía.\n\n### Próximo paso\n\nCrear un script que prepare estado aislado, usuarios con personalidades y exporte la conversación.'
+send_roundtable pragmatica pragmatica-001 $'### Hallazgo Pragmática\n\nPodemos usar el chat como pizarra compartida con agentes paralelos porque la CLI serializa las escrituras del estado EDN con un lock.\n\n### Próximo paso\n\nCrear un script que prepare estado aislado, usuarios con personalidades y exporte la conversación.'
 
 run_chat show roundtable esceptica
-send_roundtable esceptica esceptica-001 $'### Hallazgo Escéptica\n\nEl state file EDN compartido puede corromperse si varios agentes escriben a la vez. La demo debe documentar ese riesgo o serializar turnos.\n\n### Primer test rojo sugerido\n\nDado un directorio temporal, el script de dogfood crea estado aislado, envía mensajes y exporta un transcript con una story candidata.'
+send_roundtable esceptica esceptica-001 $'### Hallazgo Escéptica\n\nEl state file EDN compartido debe fallar de forma segura si no consigue el lock. La demo debe documentar retry/backoff para agentes simultáneos.\n\n### Primer test rojo sugerido\n\nDado un directorio temporal, el script de dogfood crea estado aislado, envía mensajes y exporta un transcript con una story candidata.'
 
 run_chat show roundtable narradora
 send_roundtable narradora narradora-001 $'### Hallazgo Narradora\n\nLa demo cuenta mejor la historia si las personalidades no son roles fijos: cada agente puede descubrir UX, dominio o testing mientras usa el producto.\n\n### Story candidata\n\nComo mantenedor, quiero una demo dogfood donde agentes usen el chat por CLI para descubrir backlog colaborativamente.\n\nCriterios:\n\n- crea estado aislado;\n- crea agentes con personalidades;\n- usa la CLI real para conversar;\n- exporta el transcript;\n- no crea issues automáticamente.'
@@ -94,10 +94,11 @@ cat > "$AUDIT_FILE" <<AUDIT
 - esceptica: Escéptica, busca riesgos y tests rojos.
 - narradora: Narradora, cuida claridad y experiencia.
 
-## Turnos seriales
+## Lock de estado
 
-La demo ejecuta turnos seriales. La concurrencia del state file EDN queda fuera
-de alcance para este corte.
+La CLI serializa escrituras del state file EDN con el lock
+\`$STATE_FILE.lock\`. Si un agente no obtiene el lock, debe reintentar el comando
+completo después de un backoff corto.
 
 ## Comandos CLI ejecutados
 
@@ -112,7 +113,7 @@ cat >> "$AUDIT_FILE" <<AUDIT
 ## Fricciones observadas
 
 - El \`client-txn-id\` debe pasarse manualmente en \`send\`.
-- El state file EDN compartido no tiene locking para escrituras concurrentes.
+- Los agentes paralelos necesitan retry/backoff ante \`state/lock-unavailable\`.
 
 ## Transcript
 

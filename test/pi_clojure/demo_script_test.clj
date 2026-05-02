@@ -60,7 +60,8 @@
         (is (str/includes? audit "Estado aislado"))
         (is (str/includes? audit "Sala: roundtable"))
         (is (str/includes? audit "Participantes"))
-        (is (str/includes? audit "Turnos seriales"))
+        (is (str/includes? audit "Lock de estado"))
+        (is (str/includes? audit "state/lock-unavailable"))
         (is (str/includes? audit "Fricciones observadas"))
         (is (str/includes? audit "clojure -M:chat create-user pragmatica")))
       (let [markdown (slurp export-file)]

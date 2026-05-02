@@ -1,9 +1,12 @@
 (ns pi-clojure.cli-test
   (:refer-clojure :exclude [run!])
-  (:require [clojure.java.io :as io]
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
-            [pi-clojure.cli :as cli]))
+            [pi-clojure.cli :as cli])
+  (:import [java.nio.channels FileChannel]
+           [java.nio.file StandardOpenOption]))
 
 (defn temp-state-file []
   (doto (java.io.File/createTempFile "pi-clojure-chat" ".edn")
@@ -95,6 +98,63 @@
       (is (= "No hay salas disponibles.\n" out))
       (is (= "" err))
       (is (false? (.exists state-file))))))
+
+(deftest write-commands-fail-safely-when-state-lock-is-held
+  (testing "given another process holds the state lock, when sending from the CLI entrypoint, then it fails without changing state"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "alice")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "alice")
+      (let [state-before (slurp state-file)
+            lock-path (str state-file ".lock")]
+        (with-open [channel (FileChannel/open (.toPath (io/file lock-path))
+                                              (into-array StandardOpenOption
+                                                          [StandardOpenOption/CREATE
+                                                           StandardOpenOption/WRITE]))]
+          (let [lock (.lock channel)
+                result (try
+                         (run-main-status! state-file
+                                           "send"
+                                           "general"
+                                           "alice"
+                                           "Mensaje bloqueado"
+                                           "txn-locked-1")
+                         (finally
+                           (.release lock)))]
+            (is (= 1 (:exit-code result)))
+            (is (= "" (:out result)))
+            (is (str/includes? (:err result) "No se pudo obtener el lock del estado"))
+            (is (str/includes? (:err result) "Código: state/lock-unavailable"))
+            (is (= state-before (slurp state-file))))))
+      (io/delete-file state-file true)
+      (io/delete-file (str state-file ".lock") true))))
+
+(deftest concurrent-send-commands-do-not-lose-messages
+  (testing "given two send commands start together, when they share the same state file, then both successful writes are preserved"
+    (let [state-file (temp-state-file)
+          start (promise)]
+      (run! state-file "create-user" "alice")
+      (run! state-file "create-user" "bob")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "alice")
+      (run! state-file "join" "general" "bob")
+      (let [send-later (fn [handle body txn]
+                         (future
+                           @start
+                           (run-main-status! state-file "send" "general" handle body txn)))
+            alice-send (send-later "alice" "Mensaje de Alice" "txn-alice-1")
+            bob-send (send-later "bob" "Mensaje de Bob" "txn-bob-1")]
+        (deliver start true)
+        (is (= #{0} (set (map :exit-code [@alice-send @bob-send]))))
+        (let [state (edn/read-string (slurp state-file))
+              messages (get-in state [:messages/by-room-id "room:shared:general"])]
+          (is (= ["Mensaje de Alice" "Mensaje de Bob"]
+                 (sort (map :message/body-markdown messages))))
+          (is (= ["txn-alice-1" "txn-bob-1"]
+                 (sort (map :message/client-txn-id messages))))
+          (is (= 2 (count messages))))
+        (io/delete-file state-file true)
+        (io/delete-file (str state-file ".lock") true)))))
 
 (deftest send-command-reports-idempotency-outcome
   (testing "given the same client txn id is retried, when sending, then the CLI reports creation vs reuse and keeps one message"

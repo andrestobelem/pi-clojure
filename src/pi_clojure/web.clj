@@ -80,6 +80,15 @@
       (str/join "\n" (map #(render-room store %) rooms))
       "<p class=\"empty\">No hay salas disponibles.</p>")))
 
+(defn render-create-user-form []
+  (str "<section class=\"user-create\">"
+       "<h2>Crear usuario</h2>"
+       "<form method=\"post\" action=\"/users\" class=\"user-create-form\">"
+       "<label>Handle <input name=\"handle\" autocomplete=\"username\"></label>"
+       "<button type=\"submit\">Crear usuario</button>"
+       "</form>"
+       "</section>"))
+
 (defn render-home-page
   ([store]
    (render-home-page store nil))
@@ -99,6 +108,7 @@
           (str "<p class=\"flash flash--" (html-escape (:type flash)) "\">"
                (html-escape (:message flash))
                "</p>"))
+        (render-create-user-form)
         (render-create-room-form)
         (render-rooms store)
         "\n</main>\n"
@@ -133,6 +143,23 @@
       {:status 400
        :html (render-home-page store {:type "error"
                                       :message "No se pudo crear la sala"})})))
+
+(defn create-user-error-message [exception]
+  (if (= "handle already exists" (ex-message exception))
+    "Ya existe un usuario con ese handle"
+    "No se pudo crear el usuario. Usá 3 a 39 caracteres en minúsculas: letras, números, guion o guion bajo."))
+
+(defn create-user! [store params]
+  (let [handle (get params "handle")]
+    (try
+      (chat/create-user! store handle :user.type/human)
+      {:status 200
+       :html (render-home-page store {:type "success"
+                                      :message (str "Usuario creado: " handle)})}
+      (catch clojure.lang.ExceptionInfo exception
+        {:status 400
+         :html (render-home-page store {:type "error"
+                                        :message (create-user-error-message exception)})}))))
 
 (defn publish-message! [store params]
   (try
@@ -173,21 +200,21 @@
 (defn request-body [^HttpExchange exchange]
   (slurp (.getRequestBody exchange)))
 
-(defn persist-success! [state-file store status]
-  (when (= 200 status)
-    (save-store! state-file store)))
+(defn handle-post! [state-file exchange action]
+  (let [store (load-store state-file)
+        {:keys [status html]} (action store (parse-form-body (request-body exchange)))]
+    (when (= 200 status)
+      (save-store! state-file store))
+    (send-response! exchange status html)))
 
 (defn handle-post-room! [state-file exchange]
-  (let [store (load-store state-file)
-        {:keys [status html]} (create-room! store (parse-form-body (request-body exchange)))]
-    (persist-success! state-file store status)
-    (send-response! exchange status html)))
+  (handle-post! state-file exchange create-room!))
 
 (defn handle-post-message! [state-file exchange]
-  (let [store (load-store state-file)
-        {:keys [status html]} (publish-message! store (parse-form-body (request-body exchange)))]
-    (persist-success! state-file store status)
-    (send-response! exchange status html)))
+  (handle-post! state-file exchange publish-message!))
+
+(defn handle-post-user! [state-file exchange]
+  (handle-post! state-file exchange create-user!))
 
 (defn home-handler [state-file]
   (reify HttpHandler
@@ -203,6 +230,9 @@
 
           (and (= "POST" method) (= "/messages" path))
           (handle-post-message! state-file exchange)
+
+          (and (= "POST" method) (= "/users" path))
+          (handle-post-user! state-file exchange)
 
           :else
           (send-response! exchange 404 "<!doctype html><h1>404</h1>"))))))

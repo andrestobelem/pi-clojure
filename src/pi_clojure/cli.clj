@@ -125,10 +125,10 @@
 
     "export"
     (let [[room-name handle & option-args] args
-          _user (require-user store handle)
+          user (require-user store handle)
           room (require-room store room-name)
           {:keys [output force?]} (export-options option-args)
-          markdown (chat/export-room-markdown store (:room/id room))]
+          markdown (chat/export-room-markdown store (:user/id user) (:room/id room))]
       (if output
         (do
           (write-export-file! output markdown force?)

@@ -456,12 +456,13 @@
              (user/list-active-participants store (:room/id personal-room)))))))
 
 (deftest export-room-as-markdown
-  (testing "given out-of-order messages, when anyone exports a shared room, then it includes room metadata, author handles and ordered original Markdown"
+  (testing "given out-of-order messages, when an active participant exports a shared room, then it includes room metadata, author handles and ordered original Markdown"
     (let [store (user/create-store)
           andres (user/create-user! store "andres" :user.type/human)
           bot (user/create-user! store "bot" :user.type/agent)
           shared-room (user/create-shared-room! store "General")
           markdown-body "Primero **fuerte**\n\n- item\n\n```clojure\n(+ 1 2)\n```"]
+      (user/join-room! store (:user/id andres) (:room/id shared-room))
       (user/add-message! store (:room/id shared-room) (:user/id bot) 2 "Segundo con `código`")
       (user/add-message! store (:room/id shared-room) (:user/id andres) 1 markdown-body)
       (is (= (str "# General\n\n"
@@ -473,7 +474,7 @@
                   "### Mensaje 2\n\n"
                   "Autor: bot (agent)\n\n"
                   "Segundo con `código`\n")
-             (user/export-room-markdown store (:room/id shared-room))))))
+             (user/export-room-markdown store (:user/id andres) (:room/id shared-room))))))
 
   (testing "given a personal room, when exporting, then it includes a stable personal room type"
     (let [store (user/create-store)
@@ -486,7 +487,7 @@
                   "### Mensaje 1\n\n"
                   "Autor: andres\n\n"
                   "Nota personal\n")
-             (user/export-room-markdown store (:room/id personal-room))))))
+             (user/export-room-markdown store (:user/id andres) (:room/id personal-room))))))
 
   (testing "given participation events in the room, when exporting, then only chat messages appear and output is deterministic"
     (let [store (user/create-store)
@@ -494,6 +495,7 @@
           shared-room (user/create-shared-room! store "General")]
       (user/join-room! store (:user/id created-user) (:room/id shared-room))
       (user/leave-room! store (:user/id created-user) (:room/id shared-room))
+      (user/join-room! store (:user/id created-user) (:room/id shared-room))
       (user/add-message! store (:room/id shared-room) (:user/id created-user) 1 "Público")
       (is (= (str "# General\n\n"
                   "Tipo: shared\n\n"
@@ -501,8 +503,34 @@
                   "### Mensaje 1\n\n"
                   "Autor: andres\n\n"
                   "Público\n")
-             (user/export-room-markdown store (:room/id shared-room))
-             (user/export-room-markdown store (:room/id shared-room)))))))
+             (user/export-room-markdown store (:user/id created-user) (:room/id shared-room))
+             (user/export-room-markdown store (:user/id created-user) (:room/id shared-room))))))
+
+  (testing "given a user who is not an active participant, when exporting a shared room, then access is denied explicitly"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          zoe (user/create-user! store "zoe" :user.type/human)
+          shared-room (user/create-shared-room! store "General")]
+      (user/join-room! store (:user/id andres) (:room/id shared-room))
+      (try
+        (user/export-room-markdown store (:user/id zoe) (:room/id shared-room))
+        (is false "expected access denied")
+        (catch clojure.lang.ExceptionInfo ex
+          (is (= "room export access denied" (ex-message ex)))
+          (is (= {:error/type :room/access-denied
+                  :error/path [:room/access]
+                  :user-id (:user/id zoe)
+                  :room-id (:room/id shared-room)}
+                 (ex-data ex)))))))
+
+  (testing "given a personal room, when another user exports it, then access is denied explicitly"
+    (let [store (user/create-store)
+          andres (user/create-user! store "andres" :user.type/human)
+          zoe (user/create-user! store "zoe" :user.type/human)
+          personal-room (user/find-personal-room-by-owner store (:user/id andres))]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"room export access denied"
+                            (user/export-room-markdown store (:user/id zoe) (:room/id personal-room)))))))
 
 (deftest list-users-in-store
   (testing "given users created out of order, when listing users, then it returns them ordered by handle"

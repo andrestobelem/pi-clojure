@@ -183,4 +183,21 @@
               :out ""
               :err "Error: La sala \"random\" no existe\nCódigo: room/not-found\nCampo: room.name\n"}
              (run-main-status! state-file "join" "random" "andres")))
+      (io/delete-file state-file true)))
+
+  (testing "given a non participant, when exporting from the binary entrypoint, then the CLI prints an access error"
+    (let [state-file (temp-state-file)]
+      (run! state-file "create-user" "andres")
+      (run! state-file "create-user" "zoe")
+      (run! state-file "create-room" "general")
+      (run! state-file "join" "general" "andres")
+      (let [{:keys [exit-code out err]} (run-main-status! state-file
+                                                          "export"
+                                                          "general"
+                                                          "zoe")]
+        (is (= 1 exit-code))
+        (is (= "" out))
+        (is (str/includes? err "Error: room export access denied"))
+        (is (str/includes? err "Código: room/access-denied"))
+        (is (str/includes? err "Campo: room.access")))
       (io/delete-file state-file true))))

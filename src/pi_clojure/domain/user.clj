@@ -277,7 +277,16 @@
        "Autor: " (export-author-label store (:message/author-id message)) "\n\n"
        (:message/body-markdown message)))
 
-(defn export-room-markdown [store room-id]
+(defn require-export-access! [store user-id room-id]
+  (when-not (active-participant? store user-id room-id)
+    (throw (ex-info "room export access denied"
+                    {:error/type :room/access-denied
+                     :error/path [:room/access]
+                     :user-id user-id
+                     :room-id room-id}))))
+
+(defn export-room-markdown [store user-id room-id]
+  (require-export-access! store user-id room-id)
   (let [room (find-room store room-id)
         messages (->> (messages-in-room store room-id)
                       (sort-by :message/sequence))]

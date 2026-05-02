@@ -4,16 +4,24 @@ set -euo pipefail
 DEMO_TMP_DIR="${DEMO_TMP_DIR:-.demo}"
 STATE_FILE="$DEMO_TMP_DIR/agent-roundtable.edn"
 EXPORT_FILE="$DEMO_TMP_DIR/agent-roundtable-demo.md"
+AUDIT_FILE="$DEMO_TMP_DIR/agent-roundtable-audit.md"
 PROMPTS_DIR="$DEMO_TMP_DIR/prompts"
+COMMAND_LOG=()
 
 mkdir -p "$DEMO_TMP_DIR" "$PROMPTS_DIR"
-rm -f "$STATE_FILE" "$EXPORT_FILE"
+rm -f "$STATE_FILE" "$EXPORT_FILE" "$AUDIT_FILE"
 export PI_CHAT_STATE_FILE="$STATE_FILE"
 
-run_chat() {
-  printf '\n$ clojure -M:chat'
+shell_command() {
+  printf 'clojure -M:chat'
   printf ' %q' "$@"
-  printf '\n'
+}
+
+run_chat() {
+  local command
+  command="$(shell_command "$@")"
+  COMMAND_LOG+=("$command")
+  printf '\n$ %s\n' "$command"
   clojure -M:chat "$@"
 }
 
@@ -70,6 +78,47 @@ send_roundtable narradora narradora-001 $'### Hallazgo Narradora\n\nLa demo cuen
 
 run_chat export roundtable pragmatica --output "$EXPORT_FILE"
 
+cat > "$AUDIT_FILE" <<AUDIT
+# Auditoría dogfood roundtable
+
+## Estado aislado
+
+- State file: \`$STATE_FILE\`
+- Export transcript: \`$EXPORT_FILE\`
+
+## Sala: roundtable
+
+## Participantes
+
+- pragmatica: Pragmática, busca el slice mínimo ejecutable.
+- esceptica: Escéptica, busca riesgos y tests rojos.
+- narradora: Narradora, cuida claridad y experiencia.
+
+## Turnos seriales
+
+La demo ejecuta turnos seriales. La concurrencia del state file EDN queda fuera
+de alcance para este corte.
+
+## Comandos CLI ejecutados
+
+AUDIT
+
+for command in "${COMMAND_LOG[@]}"; do
+  printf -- '- `%s`\n' "$command" >> "$AUDIT_FILE"
+done
+
+cat >> "$AUDIT_FILE" <<AUDIT
+
+## Fricciones observadas
+
+- El \`client-txn-id\` debe pasarse manualmente en \`send\`.
+- El state file EDN compartido no tiene locking para escrituras concurrentes.
+
+## Transcript
+
+Ver \`$EXPORT_FILE\`.
+AUDIT
+
 grep -F '# Roundtable' "$EXPORT_FILE" >/dev/null
 grep -F 'Pragmática' "$EXPORT_FILE" >/dev/null
 grep -F 'Escéptica' "$EXPORT_FILE" >/dev/null
@@ -79,6 +128,7 @@ grep -F 'Primer test rojo sugerido' "$EXPORT_FILE" >/dev/null
 
 printf '\nPrompts generados en: %s\n' "$PROMPTS_DIR"
 printf 'Transcript exportado: %s\n' "$EXPORT_FILE"
+printf 'Auditoría exportada: %s\n' "$AUDIT_FILE"
 printf '\nPara lanzar agentes pi manualmente:\n'
 printf '  PI_CHAT_STATE_FILE=%q pi "$(cat %q)"\n' "$STATE_FILE" "$PROMPTS_DIR/pragmatica.md"
 printf '  PI_CHAT_STATE_FILE=%q pi "$(cat %q)"\n' "$STATE_FILE" "$PROMPTS_DIR/esceptica.md"

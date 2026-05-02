@@ -10,8 +10,9 @@ hallazgos con la CLI y exportan la conversación como evidencia de discovery.
 scripts/demo-agent-roundtable.sh
 ```
 
-La demo usa estado aislado en `.demo/agent-roundtable.edn` y exporta el
-transcript en `.demo/agent-roundtable-demo.md`.
+La demo usa estado aislado en `.demo/agent-roundtable.edn`, exporta el
+transcript en `.demo/agent-roundtable-demo.md` y genera una auditoría en
+`.demo/agent-roundtable-audit.md`.
 
 Para correrla en un directorio temporal:
 
@@ -60,3 +61,11 @@ El transcript exportado debería incluir:
 - propuestas de mejora;
 - una story candidata;
 - primer test rojo sugerido.
+
+La auditoría debería incluir:
+
+- estado aislado usado;
+- sala y participantes;
+- comandos CLI ejecutados;
+- límite de turnos seriales;
+- fricciones observadas.
